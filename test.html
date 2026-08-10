@@ -846,6 +846,38 @@
     return 'keys stripped from the export, live settings unaffected';
   });
 
+  t('Import restores preferences but never touches your keys', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var savedSettings = localStorage.getItem('sage.settings.v1');
+    var savedReadings = localStorage.getItem('sage.readings.v1');
+    try {
+      /* This machine has keys set and no birth date. */
+      localStorage.setItem('sage.settings.v1', JSON.stringify({
+        voice:'trad', imageSource:'local', imgDefaultV2:true,
+        ai:{ primary:'openai', openai:{ key:'sk-live-key', model:'gpt-4o' } }
+      }));
+
+      S.store.importAll(JSON.stringify({
+        app:'sage', version:1, readings:[], study:{ cards:{}, quizzes:0 },
+        settings:{ birthDate:'1985-07-14', voice:'plain', imageSource:'commons',
+                   ai:{ primary:'anthropic', anthropic:{ key:'', model:'' } } }
+      }), false);
+
+      var s = S.store.settings();
+      assert(s.birthDate === '1985-07-14', 'the birth date did not come across: ' + s.birthDate);
+      assert(s.voice === 'plain', 'the voice preference did not come across');
+      assert(s.imageSource === 'commons', 'the image source did not come across');
+      assert(s.ai.openai.key === 'sk-live-key', 'the live API key was clobbered by the import');
+      assert(s.ai.primary === 'anthropic', 'the primary provider did not come across');
+    } finally {
+      if (savedSettings === null) localStorage.removeItem('sage.settings.v1');
+      else localStorage.setItem('sage.settings.v1', savedSettings);
+      if (savedReadings === null) localStorage.removeItem('sage.readings.v1');
+      else localStorage.setItem('sage.readings.v1', savedReadings);
+    }
+    return 'birth date, voice and image source restored; existing keys untouched';
+  });
+
   t('Storage round-trips a reading', function () {
     if (!S.store.available) return 'skipped — localStorage unavailable in this context';
     var before = S.store.readings().length;

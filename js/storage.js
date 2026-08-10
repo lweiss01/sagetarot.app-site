@@ -207,6 +207,22 @@
         set(K_READINGS, data.readings || []);
         set(K_STUDY, data.study || { cards: {}, quizzes: 0 });
       }
+
+      /* Restore the preferences that travel in a backup — birth date, voice,
+         image source. API keys are never in the file and whatever keys are set
+         on this machine are left alone. */
+      if (data.settings) {
+        var live = S.store.settings();
+        ['birthDate', 'voice', 'imageSource'].forEach(function (k) {
+          if (typeof data.settings[k] === 'string' && data.settings[k]) live[k] = data.settings[k];
+        });
+        if (data.settings.ai && data.settings.ai.primary) {
+          live.ai = live.ai || {};
+          live.ai.primary = data.settings.ai.primary;
+        }
+        set(K_SETTINGS, live);
+      }
+
       drawCache = null;
       return true;
     },
