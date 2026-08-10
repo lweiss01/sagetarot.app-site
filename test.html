@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sage — self test</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+  .t{padding:6px 0;border-bottom:1px solid var(--line);font-size:.92rem;display:flex;gap:14px;}
+  .t .s{width:52px;flex:none;font-weight:600;letter-spacing:.1em;font-size:.7rem;padding-top:3px;}
+  .pass .s{color:#7fa87f;} .fail .s{color:var(--rose);}
+  .fail{background:rgba(192,122,128,.07);}
+  pre{white-space:pre-wrap;font-size:.8rem;color:var(--muted);margin:6px 0 0;}
+</style>
+</head>
+<body>
+<div class="wrap view">
+  <div class="page-head">
+    <div class="eyebrow">Diagnostics</div>
+    <h1>Sage self test</h1>
+    <p class="lede">Checks the card database, the spread definitions and the reading engine. Open this after any edit.</p>
+  </div>
+  <div id="summary" class="panel" style="margin-bottom:24px"></div>
+  <div id="out"></div>
+  <hr class="divider">
+  <h2 style="margin-bottom:14px">Sample reading (Celtic Cross, random draw)</h2>
+  <div class="prose" id="sample"></div>
+</div>
+
+<script src="js/cards.js"></script>
+<script src="js/cards-minor.js"></script>
+<script src="js/cards-minor2.js"></script>
+<script src="js/cards-plain.js"></script>
+<script src="js/cards-plain2.js"></script>
+<script src="js/cards-plain3.js"></script>
+<script src="js/spreads.js"></script>
+<script src="js/topics.js"></script>
+<script src="js/yourcards.js"></script>
+<script src="js/learn.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/ai.js"></script>
+<script>
+(function (S) {
+  var out = document.getElementById('out');
+  var pass = 0, fail = 0;
+
+  function t(name, fn) {
+    var ok = false, detail = '';
+    try { detail = fn() || ''; ok = true; }
+    catch (e) { detail = e.message + (e.stack ? '\n' + e.stack.split('\n')[1] : ''); }
+    ok ? pass++ : fail++;
+    var d = document.createElement('div');
+    d.className = 't ' + (ok ? 'pass' : 'fail');
+    d.innerHTML = '<span class="s">' + (ok ? 'PASS' : 'FAIL') + '</span><span>' + name +
+      (detail ? '<pre>' + String(detail).replace(/</g,'&lt;') + '</pre>' : '') + '</span>';
+    out.appendChild(d);
+  }
+  function assert(c, m) { if (!c) throw new Error(m || 'assertion failed'); }
+
+  /* ---------- deck integrity ---------- */
+
+  t('Deck has exactly 78 cards', function () {
+    assert(S.CARDS.length === 78, 'found ' + S.CARDS.length);
+    return '78 cards loaded';
+  });
+
+  t('All card ids are unique', function () {
+    var seen = {}, dupes = [];
+    S.CARDS.forEach(function (c) { if (seen[c.id]) dupes.push(c.id); seen[c.id] = 1; });
+    assert(!dupes.length, 'duplicates: ' + dupes.join(', '));
+  });
+
+  t('All image filenames are unique', function () {
+    var seen = {}, dupes = [];
+    S.CARDS.forEach(function (c) { if (seen[c.img]) dupes.push(c.img); seen[c.img] = 1; });
+    assert(!dupes.length, 'duplicates: ' + dupes.join(', '));
+  });
+
+  t('22 majors, 14 of each minor suit', function () {
+    var n = { major:0, wands:0, cups:0, swords:0, pentacles:0 };
+    S.CARDS.forEach(function (c) { c.arcana === 'major' ? n.major++ : n[c.suit]++; });
+    assert(n.major === 22, 'majors: ' + n.major);
+    ['wands','cups','swords','pentacles'].forEach(function (s) {
+      assert(n[s] === 14, s + ': ' + n[s]);
+    });
+    return JSON.stringify(n);
+  });
+
+  t('Major numbers run 0–21 with no gaps', function () {
+    var got = S.CARDS.filter(function (c) { return c.arcana === 'major'; })
+      .map(function (c) { return c.num; }).sort(function (a, b) { return a - b; });
+    for (var i = 0; i <= 21; i++) assert(got[i] === i, 'missing or duplicated major ' + i);
+  });
+
+  t('Each suit runs 1–14 with no gaps', function () {
+    ['wands','cups','swords','pentacles'].forEach(function (s) {
+      var got = S.CARDS.filter(function (c) { return c.suit === s; })
+        .map(function (c) { return c.num; }).sort(function (a, b) { return a - b; });
+      for (var i = 1; i <= 14; i++) assert(got[i - 1] === i, s + ' missing ' + i);
+    });
+  });
+
+  t('Every card has complete, non-trivial content', function () {
+    var bad = [];
+    S.CARDS.forEach(function (c) {
+      ['name','element','astro','img','up','rev','sym','advice'].forEach(function (k) {
+        if (!c[k] || String(c[k]).length < 3) bad.push(c.id + '.' + k);
+      });
+      if (!(c.kwU && c.kwU.length >= 3)) bad.push(c.id + '.kwU');
+      if (!(c.kwR && c.kwR.length >= 3)) bad.push(c.id + '.kwR');
+      if (c.up && c.up.length < 200) bad.push(c.id + '.up too short');
+      if (c.rev && c.rev.length < 150) bad.push(c.id + '.rev too short');
+    });
+    assert(!bad.length, bad.join(', '));
+    return 'all 78 have upright, reversed, symbolism, advice and keywords';
+  });
+
+  t('Elements are valid and match suits', function () {
+    var map = { wands:'Fire', cups:'Water', swords:'Air', pentacles:'Earth' };
+    var bad = [];
+    S.CARDS.forEach(function (c) {
+      if (['Fire','Water','Air','Earth'].indexOf(c.element) < 0) bad.push(c.id + ' bad element');
+      if (c.suit && c.element !== map[c.suit]) bad.push(c.id + ' element/suit mismatch');
+    });
+    assert(!bad.length, bad.join(', '));
+  });
+
+  /* ---------- spreads ---------- */
+
+  t('Spreads have unique ids and unique position ids', function () {
+    var ids = {};
+    S.SPREADS.forEach(function (sp) {
+      assert(!ids[sp.id], 'duplicate spread ' + sp.id); ids[sp.id] = 1;
+      var p = {};
+      sp.positions.forEach(function (pos) {
+        assert(!p[pos.id], sp.id + ' duplicate position ' + pos.id); p[pos.id] = 1;
+        assert(pos.name && pos.q && pos.lead, sp.id + '/' + pos.id + ' missing text');
+      });
+    });
+    return S.SPREADS.length + ' spreads: ' + S.SPREADS.map(function (s) {
+      return s.id + '(' + s.positions.length + ')'; }).join(', ');
+  });
+
+  t('Positions fit inside their declared grid', function () {
+    S.SPREADS.forEach(function (sp) {
+      if (sp.colw) assert(sp.colw.length === sp.cols,
+        sp.id + ' declares ' + sp.cols + ' columns but ' + sp.colw.length + ' column widths');
+      sp.positions.forEach(function (pos) {
+        if (pos.col) {
+          assert(pos.col >= 1 && pos.col <= sp.cols, sp.id + '/' + pos.id + ' col ' + pos.col + ' > ' + sp.cols);
+          assert(pos.row >= 1 && pos.row <= sp.rows, sp.id + '/' + pos.id + ' row ' + pos.row + ' > ' + sp.rows);
+        }
+      });
+    });
+  });
+
+  t('No two positions share a grid cell', function () {
+    S.SPREADS.forEach(function (sp) {
+      var cells = {};
+      sp.positions.forEach(function (pos) {
+        if (!pos.col) return;
+        var key = pos.col + ',' + pos.row;
+        assert(!cells[key], sp.id + ': ' + cells[key] + ' and ' + pos.id +
+          ' both sit at column ' + pos.col + ', row ' + pos.row + ' — they would overlap and only one would be clickable');
+        cells[key] = pos.id;
+      });
+    });
+  });
+
+  t('A sideways card has room in its column', function () {
+    S.SPREADS.forEach(function (sp) {
+      sp.positions.forEach(function (pos) {
+        if (!pos.rot) return;
+        var mult = sp.colw ? sp.colw[pos.col - 1] : 1;
+        assert(mult >= 1.714, sp.id + '/' + pos.id + ' is rotated but its column is only ' +
+          mult + '× the card width; it needs at least 1.714× or it will overhang its neighbours');
+      });
+    });
+  });
+
+  /* ---------- engine ---------- */
+
+  function randomDraw(sp) {
+    var pool = S.CARDS.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)), tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    return sp.positions.map(function (pos, i) {
+      return { positionId: pos.id, cardId: pool[i].id, reversed: Math.random() < 0.35 };
+    });
+  }
+
+  t('Every card has a plain-language rewrite', function () {
+    var missing = [], thin = [];
+    S.CARDS.forEach(function (c) {
+      var p = S.PLAIN[c.id];
+      if (!p) { missing.push(c.id); return; }
+      ['short', 'up', 'rev'].forEach(function (k) {
+        if (!p[k]) missing.push(c.id + '.' + k);
+      });
+      if (p.short && p.short.length > 70) thin.push(c.id + ' short is too long');
+      if (p.up && p.up.length < 150) thin.push(c.id + ' plain upright is thin');
+      if (p.rev && p.rev.length < 150) thin.push(c.id + ' plain reversed is thin');
+    });
+    assert(!missing.length, 'missing: ' + missing.join(', '));
+    assert(!thin.length, thin.join('; '));
+    return 'all 78 have a summary plus plain upright and reversed text';
+  });
+
+  t('Plain summaries are genuinely short and jargon-free', function () {
+    var bad = [];
+    var jargon = /arcana|querent|dignit|numerolog|esoteric|lemniscate|yod/i;
+    Object.keys(S.PLAIN).forEach(function (id) {
+      var s = S.PLAIN[id].short;
+      if (s.split(/\s+/).length > 13) bad.push(id + ': ' + s.split(/\s+/).length + ' words');
+      if (jargon.test(s)) bad.push(id + ': jargon in summary');
+    });
+    assert(!bad.length, bad.join('; '));
+  });
+
+  t('Plain voice never leaks the traditional phrasing', function () {
+    var leaks = /runs hot|runs deep and wet|runs sharp and cold|runs solid and slow|raising its voice|Elemental weather|the spine of this reading|Fire in this spread|Water in this spread|Air in this spread|Earth in this spread/;
+    var checked = 0, bad = [];
+    S.SPREADS.forEach(function (sp) {
+      for (var i = 0; i < 120; i++) {
+        var R = S.buildReading(sp.id, randomDraw(sp), '', 's' + i, 'plain');
+        var all = [].concat(R.overview, R.synthesis,
+          R.patterns.map(function (p) { return p.title + ' ' + p.text; }),
+          R.interactions.map(function (x) { return x.text; })).join(' ');
+        if (leaks.test(all)) bad.push(sp.id + ' #' + i + ': ' + all.match(leaks)[0]);
+        checked++;
+      }
+    });
+    assert(!bad.length, bad.slice(0, 4).join(' | '));
+    return checked + ' plain readings checked for traditional phrasing';
+  });
+
+  t('Plain voice explains its terms rather than assuming them', function () {
+    var bad = [];
+    S.SPREADS.forEach(function (sp) {
+      for (var i = 0; i < 150; i++) {
+        var R = S.buildReading(sp.id, randomDraw(sp), '', 'x' + i, 'plain');
+        var text = [].concat(R.overview, R.synthesis, R.entries.map(function (e) { return e.paragraphs.join(' '); }),
+          R.interactions.map(function (x) { return x.text; }),
+          R.patterns.map(function (p) { return p.text; })).join(' ');
+
+        if (/Major Arcana/.test(text) && !/22 (named|big-picture)|big-picture cards/.test(text))
+          bad.push(sp.id + ' says "Major Arcana" without explaining it');
+        if (/court cards/i.test(text) && !/Pages, Knights, Queens and Kings/.test(text))
+          bad.push(sp.id + ' says "court cards" without explaining them');
+        if (/reversed/.test(text) && !/upside down/.test(text))
+          bad.push(sp.id + ' says "reversed" without explaining it');
+        if (bad.length) return;
+      }
+    });
+    assert(!bad.length, bad[0]);
+    return 'Major Arcana, court cards and reversals are all explained on first use';
+  });
+
+  t('Both voices produce different words for the same draw', function () {
+    var sp = S.getSpread('celtic');
+    var d = randomDraw(sp);
+    var a = S.buildReading('celtic', d, 'Same question', 'seed', 'plain');
+    var b = S.buildReading('celtic', d, 'Same question', 'seed', 'trad');
+    assert(a.overview.join('') !== b.overview.join(''), 'overview identical in both voices');
+    assert(a.entries[0].paragraphs.join('') !== b.entries[0].paragraphs.join(''), 'card text identical in both voices');
+    assert(a.voice === 'plain' && b.voice === 'trad', 'voice not recorded on the reading');
+  });
+
+  t('The Learn page has content and unique anchors', function () {
+    assert(S.LEARN && S.LEARN.length >= 6, 'only ' + (S.LEARN || []).length + ' sections');
+    var ids = {};
+    S.LEARN.forEach(function (s) {
+      assert(!ids[s.id], 'duplicate section id ' + s.id); ids[s.id] = 1;
+      assert(s.title && s.body && s.body.length, s.id + ' is empty');
+      s.body.forEach(function (p) { assert(p.length > 60, s.id + ' has a stub paragraph'); });
+    });
+    return S.LEARN.length + ' sections';
+  });
+
+  t('Engine builds every spread in both voices, 300 random draws each', function () {
+    var total = 0;
+    ['plain', 'trad'].forEach(function (voice) {
+    S.SPREADS.forEach(function (sp) {
+      for (var i = 0; i < 150; i++) {
+        var R = S.buildReading(sp.id, randomDraw(sp), i % 3 === 0 ? 'Should I take the offer?' : '', '', voice);
+        assert(R.entries.length === sp.positions.length, sp.id + ' entry count ' + R.entries.length);
+        assert(R.overview.length >= 1, sp.id + ' empty overview');
+        assert(R.synthesis.length >= 1, sp.id + ' empty synthesis');
+        assert(R.advice.length >= 1, sp.id + ' empty advice');
+        R.entries.forEach(function (e) {
+          assert(e.paragraphs.length >= 2, sp.id + '/' + e.positionId + ' thin entry');
+          e.paragraphs.forEach(function (p) {
+            assert(p.length > 40, sp.id + ' short paragraph');
+            assert(p.indexOf('undefined') < 0, sp.id + ' "undefined" leaked into prose');
+            assert(p.indexOf('{') < 0, sp.id + ' unreplaced template token');
+          });
+        });
+        [].concat(R.overview, R.synthesis).forEach(function (p) {
+          assert(p.indexOf('undefined') < 0, sp.id + ' "undefined" in overview/synthesis');
+          assert(p.indexOf('NaN') < 0, sp.id + ' NaN in overview/synthesis');
+        });
+        R.patterns.concat(R.interactions).forEach(function (n) {
+          assert((n.text || '').indexOf('undefined') < 0, sp.id + ' "undefined" in notes');
+        });
+        total++;
+      }
+    });
+    });
+    return total + ' readings generated cleanly across both voices';
+  });
+
+  t('Engine is deterministic for the same draw', function () {
+    var sp = S.getSpread('celtic');
+    var d = randomDraw(sp);
+    var a = JSON.stringify(S.buildReading('celtic', d, 'test', 'seed'));
+    var b = JSON.stringify(S.buildReading('celtic', d, 'test', 'seed'));
+    assert(a === b, 'same input produced different output');
+  });
+
+  t('Every one of the 78 cards reads cleanly in both orientations and both voices', function () {
+    var n = 0;
+    ['plain', 'trad'].forEach(function (voice) {
+      S.CARDS.forEach(function (c) {
+        [false, true].forEach(function (rev) {
+          var R = S.buildReading('single', [{ positionId:'the-card', cardId:c.id, reversed:rev }], 'x', '', voice);
+          assert(R.entries.length === 1, c.id);
+          var text = R.entries[0].paragraphs.join(' ');
+          assert(text.indexOf('undefined') < 0, c.id + ' undefined');
+          assert(text.length > 200, c.id + ' entry too thin in ' + voice);
+          n++;
+        });
+      });
+    });
+    return n + ' single-card readings (78 cards × 2 orientations × 2 voices)';
+  });
+
+  t('Elemental dignities fire for opposing pairs', function () {
+    /* The Lovers (Air) crossed by Death (Water) — Air|Water is a defined pairing */
+    var d = [
+      { positionId:'heart', cardId:'lovers', reversed:false },
+      { positionId:'crossing', cardId:'death', reversed:false },
+      { positionId:'foundation', cardId:'wands-05', reversed:false },
+      { positionId:'behind', cardId:'cups-03', reversed:true },
+      { positionId:'crown', cardId:'swords-01', reversed:false },
+      { positionId:'before', cardId:'pentacles-08', reversed:false },
+      { positionId:'self', cardId:'hermit', reversed:true },
+      { positionId:'environment', cardId:'cups-10', reversed:false },
+      { positionId:'hopes-fears', cardId:'tower', reversed:false },
+      { positionId:'outcome', cardId:'star', reversed:false }
+    ];
+    var R = S.buildReading('celtic', d, 'Does this partnership survive?');
+    assert(R.interactions.length >= 3, 'only ' + R.interactions.length + ' interactions');
+    return R.interactions.length + ' pairings read; ' + R.patterns.length + ' patterns found';
+  });
+
+  t('Repeated numbers are detected', function () {
+    var d = [
+      { positionId:'past', cardId:'wands-05', reversed:false },
+      { positionId:'present', cardId:'cups-05', reversed:false },
+      { positionId:'future', cardId:'swords-05', reversed:false }
+    ];
+    var R = S.buildReading('three', d, '');
+    var hit = R.patterns.some(function (p) { return /Fives/.test(p.title); });
+    assert(hit, 'three fives were not flagged');
+    return R.patterns[0].title;
+  });
+
+  t('Cross-reading themes engine runs', function () {
+    var sp = S.getSpread('three');
+    var readings = [];
+    for (var i = 0; i < 6; i++) {
+      readings.push({ id:'t'+i, date:new Date(Date.now() - i*86400000).toISOString(),
+        spreadId:'three', question:'q'+i, draws: randomDraw(sp) });
+    }
+    /* force a recurring card */
+    readings[0].draws[0].cardId = 'tower';
+    readings[1].draws[0].cardId = 'tower';
+    readings[2].draws[1].cardId = 'tower';
+    var T = S.findThemes(readings);
+    assert(T, 'no themes returned');
+    assert(T.recurring.length >= 1, 'no recurring cards detected');
+    T.notes.forEach(function (n) {
+      assert(n.text.indexOf('undefined') < 0, 'undefined in theme note: ' + n.title);
+    });
+    return T.notes.length + ' theme notes; top repeat: ' + T.recurring[0].card.name +
+      ' ×' + T.recurring[0].readings.length;
+  });
+
+  t('Every topic is complete', function () {
+    var real = S.TOPICS.filter(function (x) { return x.id !== 'none'; });
+    assert(real.length >= 4, 'only ' + real.length + ' topics');
+    var bad = [];
+    real.forEach(function (T) {
+      ['label','chip','blurb','frame','majorHeavy','courtHeavy','reversedHeavy','advice'].forEach(function (k) {
+        if (!T[k] || T[k].length < 8) bad.push(T.id + '.' + k);
+      });
+      ['wands','cups','swords','pentacles'].forEach(function (s) {
+        if (!T.suits || !T.suits[s] || T.suits[s].length < 80) bad.push(T.id + '.suits.' + s);
+      });
+    });
+    assert(!bad.length, 'missing or thin: ' + bad.join(', '));
+    return real.length + ' topics: ' + real.map(function (t) { return t.id; }).join(', ');
+  });
+
+  t('Every topic reads cleanly on every spread', function () {
+    var n = 0;
+    S.TOPICS.forEach(function (T) {
+      S.SPREADS.forEach(function (sp) {
+        for (var i = 0; i < 25; i++) {
+          var R = S.buildReading(sp.id, randomDraw(sp), 'A question', 't' + i, 'plain', T.id);
+          assert(R.topicId === T.id, 'topic not recorded');
+          R.topical.forEach(function (x) {
+            assert(x.text && x.text.indexOf('undefined') < 0, T.id + '/' + sp.id + ' bad topical note');
+            assert(x.title && x.title.indexOf('undefined') < 0, T.id + '/' + sp.id + ' bad topical title');
+          });
+          R.advice.forEach(function (x) {
+            assert(x.text.indexOf('undefined') < 0, T.id + '/' + sp.id + ' undefined in advice');
+          });
+          if (T.suits) {
+            assert(R.topical.length >= 1, T.id + '/' + sp.id + ' produced no topical notes');
+            assert(R.overview.indexOf(T.frame) >= 0, T.id + ' frame missing from overview');
+          } else {
+            assert(R.topical.length === 0, 'the "none" topic should produce no topical notes');
+          }
+          n++;
+        }
+      });
+    });
+    return n + ' topic × spread combinations read cleanly';
+  });
+
+  t('Topics actually change the reading', function () {
+    var sp = S.getSpread('three');
+    var d = [
+      { positionId:'past', cardId:'pentacles-05', reversed:false },
+      { positionId:'present', cardId:'cups-02', reversed:false },
+      { positionId:'future', cardId:'wands-08', reversed:false }
+    ];
+    var work = S.buildReading('three', d, 'q', 's', 'plain', 'work');
+    var love = S.buildReading('three', d, 'q', 's', 'plain', 'relationship');
+    var none = S.buildReading('three', d, 'q', 's', 'plain', 'none');
+    var join = function (R) { return R.topical.map(function (x) { return x.text; }).join(' '); };
+    assert(join(work) !== join(love), 'work and relationship produced identical topical text');
+    assert(join(work).length > 0 && join(none).length === 0, 'topical text not gated on topic');
+    assert(work.advice.length > none.advice.length, 'topic did not add advice');
+    return 'the same three cards read differently for work and for a relationship';
+  });
+
+  t('Outcome ratings round-trip and drive card accuracy', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var ids = ['__oc1__', '__oc2__', '__oc3__'];
+    var before = S.store.ratedReadings().length;
+    ids.forEach(function (id, i) {
+      S.store.saveReading({
+        id:id, date:new Date().toISOString(), spreadId:'single', question:'', topic:'none',
+        draws:[{ positionId:'the-card', cardId:'tower', reversed:false }],
+        outcome:{ rating: i === 2 ? 'missed' : 'landed', what:'x', ratedAt:new Date().toISOString() }
+      });
+    });
+    assert(S.store.ratedReadings().length === before + 3, 'rated readings not counted');
+    var acc = S.store.cardAccuracy()['tower'];
+    assert(acc && acc.landed >= 2 && acc.missed >= 1, 'card accuracy not tallied: ' + JSON.stringify(acc));
+    ids.forEach(function (id) { S.store.deleteReading(id); });
+    assert(S.store.ratedReadings().length === before, 'cleanup failed');
+    return 'ratings tally per card and clear when the reading is deleted';
+  });
+
+  t('Old two-box notes are folded into one on migration', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var mk = function (id, note, what) {
+      return { id:id, date:new Date().toISOString(), spreadId:'single', question:'', topic:'none',
+               draws:[{ positionId:'the-card', cardId:'moon', reversed:false }],
+               note:note, outcome:{ rating:'landed', what:what, ratedAt:new Date().toISOString() } };
+    };
+    S.store.saveReading(mk('__mg1__', 'my note', 'what happened'));
+    S.store.saveReading(mk('__mg2__', '', 'only an outcome'));
+    S.store.saveReading(mk('__mg3__', 'only a note', ''));
+
+    S.store.migrate();
+
+    var a = S.store.reading('__mg1__'), b = S.store.reading('__mg2__'), c = S.store.reading('__mg3__');
+    assert(a.note === 'my note\n\nwhat happened', 'merge failed: ' + JSON.stringify(a.note));
+    assert(b.note === 'only an outcome', 'outcome-only did not become the note');
+    assert(c.note === 'only a note', 'note-only was disturbed');
+    [a, b, c].forEach(function (r) {
+      assert(!('what' in r.outcome), 'outcome.what survived migration');
+      assert(r.outcome.rating === 'landed', 'the rating was lost');
+    });
+
+    /* Running it twice must not duplicate anything. */
+    S.store.migrate();
+    assert(S.store.reading('__mg1__').note === 'my note\n\nwhat happened', 'second run duplicated text');
+
+    ['__mg1__','__mg2__','__mg3__'].forEach(function (id) { S.store.deleteReading(id); });
+    return 'notes merged, ratings preserved, and safe to run twice';
+  });
+
+  t('Partly-rated readings do not count for or against a card', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var before = JSON.stringify(S.store.cardAccuracy()['star'] || {});
+    S.store.saveReading({
+      id:'__oc4__', date:new Date().toISOString(), spreadId:'single', question:'', topic:'none',
+      draws:[{ positionId:'the-card', cardId:'star', reversed:false }],
+      outcome:{ rating:'partly', what:'', ratedAt:new Date().toISOString() }
+    });
+    assert(JSON.stringify(S.store.cardAccuracy()['star'] || {}) === before, '"partly" leaked into the tally');
+    S.store.deleteReading('__oc4__');
+  });
+
+  t('Streak arithmetic handles today, yesterday and gaps', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var mk = function (id, daysAgo) {
+      var d = new Date(); d.setDate(d.getDate() - daysAgo);
+      return { id:id, date:d.toISOString(), spreadId:'single', question:'', topic:'none',
+               draws:[{ positionId:'the-card', cardId:'sun', reversed:false }] };
+    };
+    var existing = S.store.readings().map(function (r) { return r.id; });
+    var made = [];
+    var add = function (n) { var id = '__st' + n + '__'; made.push(id); S.store.saveReading(mk(id, n)); };
+
+    /* Only meaningful on a clean slate; skip if there is real data in the way. */
+    if (existing.length) return 'skipped — you have real readings saved, so the streak is not isolated';
+
+    add(0); add(1); add(2);
+    assert(S.store.streak() === 3, 'today + 2 should be 3, got ' + S.store.streak());
+    made.forEach(function (id) { S.store.deleteReading(id); }); made = [];
+
+    /* A gap at today should not break a run that ended yesterday. */
+    add(1); add(2);
+    assert(S.store.streak() === 2, 'yesterday + day before should be 2, got ' + S.store.streak());
+    made.forEach(function (id) { S.store.deleteReading(id); }); made = [];
+
+    /* A two-day gap breaks it. */
+    add(2); add(3);
+    assert(S.store.streak() === 0, 'a two-day gap should break the streak, got ' + S.store.streak());
+    made.forEach(function (id) { S.store.deleteReading(id); });
+    return 'streak survives an unfinished today and breaks on a real gap';
+  });
+
+  t('Day keys use local time, not UTC', function () {
+    var late = new Date(2026, 0, 15, 23, 45);
+    var early = new Date(2026, 0, 15, 0, 15);
+    assert(S.dayKey(late) === '2026-01-15', 'late evening drifted to the next day: ' + S.dayKey(late));
+    assert(S.dayKey(early) === '2026-01-15', 'early morning drifted: ' + S.dayKey(early));
+  });
+
+  t('Birth card arithmetic matches worked examples', function () {
+    var cases = [
+      /* date,        total, final card number, expected name(s) */
+      ['1985-07-14', 7 + 14 + 1985, 8,  ['Strength']],
+      ['1990-12-25', 12 + 25 + 1990, 11, ['Justice', 'The High Priestess']],
+      ['2000-01-01', 1 + 1 + 2000,   4,  ['The Emperor']]
+    ];
+    cases.forEach(function (c) {
+      var b = S.birthCards(c[0]);
+      assert(b, 'could not read ' + c[0]);
+      assert(b.total === c[1], c[0] + ' total was ' + b.total + ', expected ' + c[1]);
+      assert(b.cards[0].num === c[2], c[0] + ' gave card ' + b.cards[0].num + ', expected ' + c[2]);
+      assert(b.cards.map(function (x) { return x.name; }).join(', ') === c[3].join(', '),
+        c[0] + ' gave ' + b.cards.map(function (x) { return x.name; }).join(', '));
+    });
+    return cases.length + ' worked examples check out, including a pair';
+  });
+
+  t('Every date in a century reduces to a real Major Arcana card', function () {
+    var n = 0, pairs = 0;
+    for (var y = 1930; y <= 2029; y++) {
+      for (var m = 1; m <= 12; m++) {
+        for (var d = 1; d <= 28; d += 9) {
+          var iso = y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2);
+          var b = S.birthCards(iso);
+          assert(b, 'failed to parse ' + iso);
+          assert(b.cards.length >= 1 && b.cards.length <= 2, iso + ' gave ' + b.cards.length + ' cards');
+          b.cards.forEach(function (c) {
+            assert(c && c.arcana === 'major', iso + ' produced a non-major');
+            assert(c.num >= 0 && c.num <= 21, iso + ' produced card number ' + c.num);
+          });
+          if (b.cards.length === 2) pairs++;
+          n++;
+        }
+      }
+    }
+    return n + ' dates reduced cleanly; ' + pairs + ' produced a pair';
+  });
+
+  t('A total of 22 reads as The Fool', function () {
+    /* 4 + 4 + 1994 = 2002 → 2+0+0+2 = 4. Hunt for a real 22 instead. */
+    var found = null;
+    for (var y = 1900; y <= 2100 && !found; y++) {
+      for (var m = 1; m <= 12 && !found; m++) {
+        for (var d = 1; d <= 28 && !found; d++) {
+          var iso = y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2);
+          var b = S.birthCards(iso);
+          if (b && b.fool) found = { iso: iso, b: b };
+        }
+      }
+    }
+    assert(found, 'no date in 200 years reduced to 22 — the edge case may be unreachable');
+    assert(found.b.cards[0].name === 'The Fool', found.iso + ' gave ' + found.b.cards[0].name);
+    assert(found.b.cards.length === 1, '22 should not produce a pair');
+    return found.iso + ' totals 22 and reads as The Fool';
+  });
+
+  t('The year card rolls over on the birthday, not on New Year', function () {
+    var iso = '1985-07-14';
+    var before = S.yearCards(iso, new Date(2026, 6, 13));   /* 13 July 2026 */
+    var onDay  = S.yearCards(iso, new Date(2026, 6, 14));   /* 14 July 2026 */
+    var after  = S.yearCards(iso, new Date(2026, 11, 31));  /* 31 Dec 2026 */
+    assert(before.year === 2025, 'the day before the birthday should still be 2025, got ' + before.year);
+    assert(onDay.year === 2026, 'the birthday itself should roll over, got ' + onDay.year);
+    assert(after.year === 2026, 'late December should still be 2026, got ' + after.year);
+    assert(onDay.runsFrom.getMonth() === 6 && onDay.runsFrom.getDate() === 14, 'wrong start date');
+    return 'runs birthday to birthday, not January to January';
+  });
+
+  t('Sun sign boundaries land on the right sign', function () {
+    var cases = [
+      ['2000-03-20','Pisces'], ['2000-03-21','Aries'], ['2000-04-19','Aries'], ['2000-04-20','Taurus'],
+      ['2000-12-21','Sagittarius'], ['2000-12-22','Capricorn'], ['2000-01-19','Capricorn'],
+      ['2000-01-20','Aquarius'], ['2000-07-22','Cancer'], ['2000-07-23','Leo']
+    ];
+    cases.forEach(function (c) {
+      var s = S.sunSign(c[0]);
+      assert(s, 'no sign for ' + c[0]);
+      assert(s.name === c[1], c[0] + ' gave ' + s.name + ', expected ' + c[1]);
+    });
+    return cases.length + ' boundary dates, including the Capricorn year-end wrap';
+  });
+
+  t('Every day of the year resolves to exactly one sign', function () {
+    var counts = {};
+    for (var m = 1; m <= 12; m++) {
+      var dim = new Date(2001, m, 0).getDate();
+      for (var d = 1; d <= dim; d++) {
+        var iso = '2001-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2);
+        var s = S.sunSign(iso);
+        assert(s, 'no sign for ' + iso);
+        counts[s.name] = (counts[s.name] || 0) + 1;
+      }
+    }
+    assert(Object.keys(counts).length === 12, 'only ' + Object.keys(counts).length + ' signs used');
+    var total = Object.keys(counts).reduce(function (t, k) { return t + counts[k]; }, 0);
+    assert(total === 365, 'covered ' + total + ' days, expected 365');
+    return 'all 365 days covered, all 12 signs used';
+  });
+
+  t('Each sign owns exactly one Major and three decan cards', function () {
+    var seenMajors = {}, seenDecans = {};
+    S.SIGNS.forEach(function (sign) {
+      var sc = S.signCards(sign.name);
+      assert(sc.major, sign.name + ' has no Major Arcana card');
+      assert(!seenMajors[sc.major.id], sc.major.name + ' is claimed by two signs');
+      seenMajors[sc.major.id] = 1;
+
+      assert(sc.decans.length === 3, sign.name + ' has ' + sc.decans.length + ' decan cards, expected 3');
+      var suits = {};
+      sc.decans.forEach(function (c) {
+        assert(!seenDecans[c.id], c.name + ' is claimed by two signs');
+        seenDecans[c.id] = 1;
+        assert(c.num >= 2 && c.num <= 10, c.name + ' is not a numbered minor between 2 and 10');
+        suits[c.suit] = 1;
+      });
+      assert(Object.keys(suits).length === 1, sign.name + ' decans span more than one suit');
+      var nums = sc.decans.map(function (c) { return c.num; });
+      assert(nums[1] === nums[0] + 1 && nums[2] === nums[1] + 1, sign.name + ' decans are not consecutive: ' + nums);
+    });
+    assert(Object.keys(seenMajors).length === 12, 'expected 12 sign-majors, got ' + Object.keys(seenMajors).length);
+    assert(Object.keys(seenDecans).length === 36, 'expected 36 decan cards, got ' + Object.keys(seenDecans).length);
+    return '12 majors and all 36 decans assigned, none shared';
+  });
+
+  t('Bad birth dates are rejected rather than guessed at', function () {
+    ['', 'not a date', '1985-13-01', '1985-02-30', '85-07-14', '1985-7-4', '1985-00-10']
+      .forEach(function (bad) {
+        assert(!S.parseBirthDate(bad), 'accepted "' + bad + '"');
+        assert(!S.birthCards(bad), 'built cards from "' + bad + '"');
+        assert(!S.yourCards(bad), 'built a full set from "' + bad + '"');
+      });
+    assert(S.parseBirthDate('1985-07-14'), 'rejected a valid date');
+  });
+
+  t('Your-card labels cover every card the page shows', function () {
+    var Y = S.yourCards('1990-12-25');
+    var labels = S.yourCardLabels('1990-12-25');
+    var expect = [].concat(Y.birth.cards, Y.year.cards, Y.signCards.decans, [Y.signCards.major]);
+    expect.forEach(function (c) {
+      assert(labels[c.id], c.name + ' has no label');
+      assert(labels[c.id].indexOf('undefined') < 0, c.name + ' label is broken');
+    });
+    return Object.keys(labels).length + ' cards labelled for that birthday';
+  });
+
+  t('A one-card reading never talks about proportions', function () {
+    /* "so many cards reversed" makes no sense when there is only one card. */
+    var proportional = /so many|most of (your|this)|the whole spread|Looking at the whole spread|of your \d+ cards|minority/i;
+    var bad = [];
+    ['plain', 'trad'].forEach(function (voice) {
+      S.CARDS.forEach(function (c) {
+        [false, true].forEach(function (rev) {
+          var R = S.buildReading('single', [{ positionId:'the-card', cardId:c.id, reversed:rev }], '', '', voice);
+          var text = [].concat(R.overview, R.synthesis,
+            R.advice.map(function (a) { return a.from + ' ' + a.text; }),
+            R.patterns.map(function (p) { return p.text; })).join(' ');
+          var m = text.match(proportional);
+          if (m) bad.push(c.id + '/' + voice + (rev ? '/rev' : '') + ': "' + m[0] + '"');
+        });
+      });
+    });
+    assert(!bad.length, bad.slice(0, 3).join(' | '));
+    return '312 one-card readings, none using spread-proportion language';
+  });
+
+  t('A one-card reading still says something about a reversal', function () {
+    var R = S.buildReading('single', [{ positionId:'the-card', cardId:'tower', reversed:true }], '', '', 'plain');
+    var text = R.synthesis.join(' ') + ' ' + R.advice.map(function (a) { return a.text; }).join(' ');
+    assert(/reversed/i.test(text), 'the reversal went unmentioned entirely');
+    assert(/upside down|turned inward|blocked|held back/i.test(text), 'reversal mentioned but never explained');
+    var up = S.buildReading('single', [{ positionId:'the-card', cardId:'tower', reversed:false }], '', '', 'plain');
+    assert(up.synthesis.join(' ') !== R.synthesis.join(' '), 'upright and reversed read identically');
+  });
+
+  t('Guest readings stay out of every one of your tallies', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var before = {
+      mine: S.store.readings().length,
+      draws: S.store.drawCounts()['world'] || 0,
+      days: Object.keys(S.store.byDay()).length,
+      acc: JSON.stringify(S.store.cardAccuracy()['world'] || {}),
+      rated: S.store.ratedReadings().length
+    };
+
+    S.store.saveReading({
+      id:'__guest1__', date:new Date().toISOString(), spreadId:'single', question:'for a friend',
+      topic:'none', guest:true, guestName:'Sam',
+      draws:[{ positionId:'the-card', cardId:'world', reversed:false }],
+      outcome:{ rating:'landed', ratedAt:new Date().toISOString() }, note:''
+    });
+
+    assert(S.store.readings().length === before.mine, 'a guest reading appeared in your journal');
+    assert((S.store.drawCounts()['world'] || 0) === before.draws, 'a guest reading changed your draw count');
+    assert(Object.keys(S.store.byDay()).length === before.days, 'a guest reading affected your streak days');
+    assert(JSON.stringify(S.store.cardAccuracy()['world'] || {}) === before.acc, 'a guest rating changed your card accuracy');
+    assert(S.store.ratedReadings().length === before.rated, 'a guest rating counted as one of yours');
+
+    assert(S.store.guestReadings().length >= 1, 'the guest reading was not filed under guests');
+    assert(S.store.reading('__guest1__'), 'the guest reading cannot be opened by id');
+    assert(S.store.allReadings().length === S.store.readings().length + S.store.guestReadings().length,
+      'yours + guests does not account for everything stored');
+
+    S.store.clearGuests();
+    assert(!S.store.reading('__guest1__'), 'clearGuests did not remove it');
+    assert(S.store.readings().length === before.mine, 'clearGuests touched your own readings');
+    return 'guest readings excluded from journal, draws, streak, accuracy and ratings';
+  });
+
+  t('Clearing guests leaves your own readings alone', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var mineId = '__mine_keep__';
+    S.store.saveReading({ id:mineId, date:new Date().toISOString(), spreadId:'single', question:'mine',
+      topic:'none', draws:[{ positionId:'the-card', cardId:'star', reversed:false }], note:'' });
+    S.store.saveReading({ id:'__g_a__', date:new Date().toISOString(), spreadId:'single', question:'',
+      topic:'none', guest:true, draws:[{ positionId:'the-card', cardId:'star', reversed:false }], note:'' });
+    S.store.clearGuests();
+    assert(S.store.reading(mineId), 'my reading was deleted');
+    assert(!S.store.reading('__g_a__'), 'the guest reading survived');
+    S.store.deleteReading(mineId);
+  });
+
+  t('Old single-key AI settings migrate to the per-provider shape', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var saved = localStorage.getItem('sage.settings.v1');
+    try {
+      localStorage.setItem('sage.settings.v1', JSON.stringify({ apiKey:'sk-ant-old', voice:'plain' }));
+      var s = S.store.settings();
+      assert(s.ai && s.ai.anthropic && s.ai.anthropic.key === 'sk-ant-old', 'the old key was lost');
+      assert(!s.apiKey, 'the old apiKey field survived');
+      assert(s.ai.primary === 'anthropic', 'no primary provider was set');
+    } finally {
+      if (saved === null) localStorage.removeItem('sage.settings.v1');
+      else localStorage.setItem('sage.settings.v1', saved);
+    }
+  });
+
+  t('Old single-string AI readings migrate to a list of runs', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    S.store.saveReading({ id:'__aimig__', date:new Date().toISOString(), spreadId:'single', question:'',
+      topic:'none', draws:[{ positionId:'the-card', cardId:'sun', reversed:false }],
+      note:'', ai:'an older reading written by Claude' });
+    S.store.migrate();
+    var r = S.store.reading('__aimig__');
+    assert(!('ai' in r), 'the old string field survived');
+    assert(r.aiRuns && r.aiRuns.length === 1, 'no run was created');
+    assert(r.aiRuns[0].provider === 'anthropic', 'the run was attributed to the wrong provider');
+    assert(r.aiRuns[0].text === 'an older reading written by Claude', 'the text was mangled');
+    S.store.migrate();
+    assert(S.store.reading('__aimig__').aiRuns.length === 1, 'running migrate twice duplicated the run');
+    S.store.deleteReading('__aimig__');
+  });
+
+  t('Providers are configured coherently', function () {
+    assert(S.PROVIDERS.length >= 3, 'expected at least three providers');
+    var ids = {};
+    S.PROVIDERS.forEach(function (p) {
+      assert(!ids[p.id], 'duplicate provider ' + p.id); ids[p.id] = 1;
+      ['name','flavour','defaultModel','keyHint','keysUrl'].forEach(function (k) {
+        assert(p[k], p.id + ' is missing ' + k);
+      });
+      assert(S.getProvider(p.id) === p, 'getProvider failed for ' + p.id);
+    });
+    assert(typeof S.askProvider === 'function' && typeof S.convene === 'function', 'call helpers missing');
+    return S.PROVIDERS.map(function (p) { return p.id; }).join(', ');
+  });
+
+  t('The council comparison prompt keeps the readings apart', function () {
+    var runs = [
+      { provider:'anthropic', text:'First reading text.' },
+      { provider:'openai', text:'Second reading text.' }
+    ];
+    var p = S.comparePrompt(runs, { question:'Should I move?' }, 'Celtic Cross');
+    assert(p.indexOf('First reading text.') >= 0 && p.indexOf('Second reading text.') >= 0, 'a reading was dropped');
+    assert(/could not see each other/i.test(p), 'independence is not stated');
+    assert(/diverge|disagree/i.test(p), 'divergence is not asked for');
+    assert(/not smooth it over|do not smooth/i.test(p), 'nothing prevents a bland consensus');
+    assert(p.indexOf('Should I move?') >= 0, 'the question was dropped');
+  });
+
+  t('Exported backups never contain API keys', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var saved = localStorage.getItem('sage.settings.v1');
+    try {
+      localStorage.setItem('sage.settings.v1', JSON.stringify({
+        voice:'plain',
+        ai:{ primary:'openai', anthropic:{key:'sk-ant-secret',model:''}, openai:{key:'sk-secret',model:'gpt-4o'} }
+      }));
+      var json = S.store.exportAll();
+      assert(json.indexOf('sk-ant-secret') < 0, 'an Anthropic key leaked into the export');
+      assert(json.indexOf('sk-secret') < 0, 'an OpenAI key leaked into the export');
+      assert(json.indexOf('gpt-4o') >= 0, 'the model choice was lost, which is worth keeping');
+      /* And the real settings must be untouched by exporting. */
+      assert(S.store.settings().ai.openai.key === 'sk-secret', 'exporting wiped the live key');
+    } finally {
+      if (saved === null) localStorage.removeItem('sage.settings.v1');
+      else localStorage.setItem('sage.settings.v1', saved);
+    }
+    return 'keys stripped from the export, live settings unaffected';
+  });
+
+  t('Storage round-trips a reading', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var before = S.store.readings().length;
+    var rec = { id:'__selftest__', date:new Date().toISOString(), spreadId:'single',
+      question:'test', draws:[{positionId:'the-card',cardId:'fool',reversed:false}], note:'' };
+    S.store.saveReading(rec);
+    assert(S.store.reading('__selftest__'), 'not saved');
+    S.store.deleteReading('__selftest__');
+    assert(!S.store.reading('__selftest__'), 'not deleted');
+    assert(S.store.readings().length === before, 'reading count drifted');
+    return 'save, read and delete all work';
+  });
+
+  t('Draw counts are derived, so re-saving a reading does not inflate them', function () {
+    if (!S.store.available) return 'skipped — localStorage unavailable in this context';
+    var before = S.store.drawCounts()['fool'] || 0;
+    var rec = { id:'__counttest__', date:new Date().toISOString(), spreadId:'single',
+      question:'', draws:[{positionId:'the-card',cardId:'fool',reversed:false}], note:'' };
+    S.store.saveReading(rec);
+    assert((S.store.drawCounts()['fool'] || 0) === before + 1, 'first save did not count');
+    rec.note = 'a note';        S.store.saveReading(rec);
+    rec.ai   = 'an ai reading'; S.store.saveReading(rec);
+    S.store.saveReading(rec);
+    var after = S.store.drawCounts()['fool'] || 0;
+    assert(after === before + 1, 'four saves counted as ' + (after - before) + ' draws');
+    S.store.deleteReading('__counttest__');
+    assert((S.store.drawCounts()['fool'] || 0) === before, 'delete did not decrement');
+    return 'four saves of one reading = one draw; deleting it removes the draw';
+  });
+
+  /* ---------- summary ---------- */
+
+  document.getElementById('summary').innerHTML =
+    '<div class="stat-row">' +
+    '<div class="stat"><div class="v" style="color:' + (fail ? 'var(--rose)' : '#7fa87f') + '">' +
+      (fail ? fail + ' failed' : 'All passed') + '</div><div class="l">Result</div></div>' +
+    '<div class="stat"><div class="v">' + pass + '</div><div class="l">Passing</div></div>' +
+    '<div class="stat"><div class="v">' + S.CARDS.length + '</div><div class="l">Cards</div></div>' +
+    '<div class="stat"><div class="v">' + S.SPREADS.length + '</div><div class="l">Spreads</div></div>' +
+    '</div>';
+
+  /* ---------- sample output ---------- */
+
+  var sp = S.getSpread('celtic');
+  var R = S.buildReading('celtic', randomDraw(sp), 'Am I right to be thinking about leaving?');
+  var html = R.overview.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+  html += '<hr class="divider">';
+  R.entries.slice(0, 3).forEach(function (e) {
+    html += '<h3 style="color:var(--gold-bright);margin-bottom:6px">' + e.positionName + ' — ' +
+      e.cardName + (e.reversed ? ' (reversed)' : '') + '</h3>';
+    html += e.paragraphs.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+  });
+  html += '<hr class="divider">' + R.synthesis.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+  document.getElementById('sample').innerHTML = html;
+
+})(window.SAGE);
+</script>
+</body>
+</html>

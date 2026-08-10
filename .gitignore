@@ -1,0 +1,17 @@
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Never commit a backup export — it contains your readings
+sage-backup*.json
+Sage backup*.json
+
+# Distribution zips get rebuilt from the source; no need to publish them
+*.zip
+

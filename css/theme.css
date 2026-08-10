@@ -1,0 +1,232 @@
+/* ============================================================
+   Sage — theme layer
+   Drop-in reskin: palette, type scale, flat letterpress surfaces,
+   light + dark themes. Load AFTER css/styles.css.
+
+     <link rel="stylesheet" href="css/styles.css">
+     <link rel="stylesheet" href="css/theme.css">
+
+   Nothing here renames a class or touches markup. It re-points the
+   variables styles.css already uses, then neutralises the handful of
+   rules where the old dark palette was hardcoded.
+   ============================================================ */
+
+/* ---------- 1. tokens ---------- */
+
+:root,
+:root[data-theme="light"]{
+  /* new semantic names (use these going forward) */
+  --paper:#F3F1EA;
+  --sheet:#F8F6F0;
+  --raised:#FDFCF8;
+  --text:#1F2233;
+  --text-dim:#4A4E63;
+  --text-faint:#6A6E82;
+  --rule:rgba(31,34,51,.14);
+  --rule-soft:rgba(31,34,51,.10);
+  --rule-strong:rgba(31,34,51,.24);
+  --hover:rgba(31,34,51,.055);
+  --accent:#1F2233;          /* primary action = ink, not gold */
+  --on-accent:#F3F1EA;
+
+  /* legacy names remapped — this is what actually repaints the app */
+  --ink:var(--paper);
+  --ink-2:var(--sheet);
+  --panel:var(--sheet);
+  --panel-2:var(--raised);
+  --line:var(--rule);
+  --line-strong:var(--rule-strong);
+  --gold:var(--accent);
+  --gold-bright:var(--text);
+  --gold-dim:var(--text-faint);
+  --cream:var(--text);
+  --cream-dim:var(--text-dim);
+  --muted:var(--text-faint);
+  --rose:#9C4A51;
+  --violet:#5B5F78;
+
+  --radius:3px;
+  --shadow:none;
+}
+
+:root[data-theme="dark"]{
+  --paper:#171A28;
+  --sheet:#1D2132;
+  --raised:#232840;
+  --text:#F3F1EA;
+  --text-dim:#A6AABF;
+  --text-faint:#878CA3;
+  --rule:rgba(243,241,234,.13);
+  --rule-soft:rgba(243,241,234,.10);
+  --rule-strong:rgba(243,241,234,.22);
+  --hover:rgba(243,241,234,.06);
+  --accent:#F3F1EA;
+  --on-accent:#171A28;
+  --rose:#C98B90;
+  --violet:#9A9EBA;
+}
+
+/* honour the OS until the user picks a side */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){
+    --paper:#171A28; --sheet:#1D2132; --raised:#232840;
+    --text:#F3F1EA; --text-dim:#A6AABF; --text-faint:#878CA3;
+    --rule:rgba(243,241,234,.13); --rule-soft:rgba(243,241,234,.10);
+    --rule-strong:rgba(243,241,234,.22); --hover:rgba(243,241,234,.06);
+    --accent:#F3F1EA; --on-accent:#171A28;
+    --rose:#C98B90; --violet:#9A9EBA;
+  }
+}
+
+html{color-scheme:light;}
+:root[data-theme="dark"]{color-scheme:dark;}
+
+/* ---------- 2. page ---------- */
+
+body{
+  background:var(--paper);          /* the violet/gold auras go */
+  color:var(--text);
+}
+
+/* ---------- 3. typography ---------- */
+
+h1,h2,h3,h4{font-weight:400;letter-spacing:0;}
+h1{font-size:3.2rem;line-height:1.05;}
+h2{font-size:2rem;line-height:1.15;}
+h3{font-size:1.38rem;}
+h4{font-weight:500;font-size:1.22rem;}
+
+/* rosette mark + divider, drawn in CSS so index.html needs no new markup.
+   The mask makes the mark inherit currentColor, so it flips with the theme. */
+.brand{align-items:center;flex-wrap:wrap;gap:0;color:var(--text);}
+.brand::before,
+.brand::after{content:"";flex:none;box-sizing:content-box;position:relative;top:7px;}
+/* (top:7px centres them on the full two-line block, not just the SAGE line) */
+/* the rosette — inlined, so it depends on no file path */
+.brand::before{
+  order:-2;
+  width:27px;height:27px;
+  background-color:currentColor;
+  -webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill-rule="evenodd" d="M50 12 A19 19 0 0 1 69 31 A19 19 0 0 1 88 50 A19 19 0 0 1 69 69 A19 19 0 0 1 50 88 A19 19 0 0 1 31 69 A19 19 0 0 1 12 50 A19 19 0 0 1 31 31 A19 19 0 0 1 50 12 Z M50 39 A11 11 0 1 0 50.01 39 Z"/></svg>');
+  mask-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill-rule="evenodd" d="M50 12 A19 19 0 0 1 69 31 A19 19 0 0 1 88 50 A19 19 0 0 1 69 69 A19 19 0 0 1 50 88 A19 19 0 0 1 31 69 A19 19 0 0 1 12 50 A19 19 0 0 1 31 31 A19 19 0 0 1 50 12 Z M50 39 A11 11 0 1 0 50.01 39 Z"/></svg>');
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+}
+/* the divider — its own box, so the mask above can't swallow it */
+.brand::after{
+  order:-1;
+  width:1px;height:34px;
+  margin:0 17px;
+  background:var(--rule-strong);
+}
+.brand .mark{color:var(--text);letter-spacing:.2em;font-size:1.34rem;line-height:1;}
+.brand .sub{
+  flex:0 0 100%;                 /* stacks under SAGE, as in the design */
+  margin-left:61px;              /* clears the mark + divider */
+  margin-top:5px;
+  font-size:.55rem;letter-spacing:.3em;color:var(--text-faint);line-height:1;
+}
+
+.page-head .eyebrow,
+.strip-label,
+label.field .lab{
+  font-size:.7rem;letter-spacing:.18em;color:var(--text-faint);
+}
+
+/* ---------- 4. flat surfaces ---------- */
+
+.panel,.modal,.board-shell,.lib-card,.spread-card,.note-card,.detail .art,
+.card-fallback,.slot.crossing .slot-inner,.slot .num{
+  box-shadow:none;
+}
+.panel,.modal,.spread-card,.note-card{
+  background:var(--sheet);
+  border-color:var(--rule);
+  border-radius:var(--radius);
+}
+.board-shell{background:var(--sheet);border-radius:var(--radius);}
+.slot .slot-inner{background:var(--paper);border-radius:var(--radius);}
+.slot .slot-inner:hover{border-color:var(--rule-strong);background:var(--hover);}
+.card-fallback{background:var(--sheet);}
+.card-fallback .glyph,.card-fallback .nm{color:var(--text);}
+
+.topbar{
+  background:var(--paper);
+  backdrop-filter:none;
+  border-bottom:1px solid var(--rule);
+}
+
+/* ---------- 5. controls ---------- */
+
+.btn,.chip.on,.slot .num,.m2{
+  color:var(--on-accent);
+}
+.btn{
+  background:var(--accent);border-color:var(--accent);
+  border-radius:var(--radius);
+  font-weight:500;letter-spacing:.02em;text-transform:none;font-size:.88rem;
+  padding:12px 24px;
+}
+.btn:hover{background:var(--text-dim);border-color:var(--text-dim);color:var(--on-accent);}
+.btn.ghost{background:none;color:var(--text);border-color:var(--rule-strong);}
+.btn.ghost:hover{background:var(--hover);color:var(--text);border-color:var(--rule-strong);}
+.btn.quiet{color:var(--text-faint);}
+.btn.quiet:hover{color:var(--text);background:var(--hover);}
+.btn.sm{padding:8px 14px;font-size:.78rem;}
+
+nav.main button{text-transform:none;letter-spacing:0;font-size:.84rem;border-radius:var(--radius);}
+nav.main button:hover{background:var(--hover);color:var(--text);}
+nav.main button.active{background:var(--accent);color:var(--on-accent);font-weight:500;}
+
+.chip{border-radius:var(--radius);text-transform:none;letter-spacing:0;font-size:.78rem;}
+.chip.on{background:var(--accent);border-color:var(--accent);}
+
+input[type=text],input[type=password],textarea,select{
+  background:var(--sheet);border-color:var(--rule-strong);
+  color:var(--text);border-radius:var(--radius);
+}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);background:var(--sheet);}
+input::placeholder,textarea::placeholder{color:var(--text-faint);}
+
+.modal-backdrop{background:color-mix(in srgb,var(--paper) 78%,transparent);}
+.modal-head h3{color:var(--text);}
+
+/* ---------- 6. dark-baked leftovers ---------- */
+
+.card-face .cap{
+  background:linear-gradient(transparent,color-mix(in srgb,#000 88%,transparent) 58%);
+  color:#F3F1EA;
+}
+.card-face .rev-flag,.flip{background:var(--sheet);color:var(--text-dim);}
+.flip:hover{border-color:var(--accent);color:var(--text);}
+.flip.on{background:var(--sheet);color:var(--rose);border-color:var(--rose);}
+.rev-toggle .sw{background:var(--rule-strong);}
+.strip .day.empty{background:var(--hover);}
+.strip .day.today{border-color:var(--accent);box-shadow:none;}
+.m0{background:var(--rule-strong);}
+.lib-card .mastery{border-color:var(--rule-strong);}
+.card-pick.chosen{border-color:var(--accent);box-shadow:0 0 0 2px var(--rule-strong);}
+.card-pick .nm{color:var(--text);text-shadow:none;}
+
+/* semantic colours: keep meaning, drop the saturation */
+.note-card.friendly{border-left-color:var(--rule-strong);}
+.rate.on.landed{background:var(--hover);border-color:var(--accent);color:var(--text);}
+.rate.on.partly{background:var(--hover);border-color:var(--rule-strong);color:var(--text-dim);}
+.rate.on.missed{background:var(--hover);border-color:var(--rose);color:var(--rose);}
+.acc-note.good{background:var(--hover);border:1px solid var(--rule);color:var(--text-dim);}
+.acc-note.bad{background:var(--hover);border:1px solid var(--rule);color:var(--text-dim);}
+.quiz-opt.right{border-color:var(--accent);background:var(--hover);}
+.quiz-opt.wrong{border-color:var(--rose);background:var(--hover);}
+
+/* ---------- 7. theme toggle button ---------- */
+
+nav.main .theme-toggle,
+.theme-toggle{
+  width:34px;height:34px;padding:0;flex:none;font-size:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--rule-strong);border-radius:var(--radius);
+  color:var(--text-dim);cursor:pointer;transition:.15s;
+}
+nav.main .theme-toggle{margin-left:10px;align-self:center;}
+nav.main .theme-toggle:hover{color:var(--text);border-color:var(--accent);background:none;}
+.theme-toggle svg{width:17px;height:17px;display:block;flex:none;}
