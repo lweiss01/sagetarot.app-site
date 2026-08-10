@@ -178,6 +178,45 @@
     },
     saveSettings: function (s) { set(K_SETTINGS, s); },
 
+    /* ---- first run and backup reminders ---- */
+
+    /* True until the welcome has been dismissed. Someone who has cleared their
+       site data looks exactly like a new user, which is the whole reason the
+       welcome offers an import as well as a fresh start. */
+    isFirstRun: function () {
+      var s = S.store.settings();
+      return !s.welcomed && !S.store.allReadings().length;
+    },
+    markWelcomed: function () {
+      var s = S.store.settings();
+      s.welcomed = new Date().toISOString();
+      set(K_SETTINGS, s);
+    },
+    noteExport: function () {
+      var s = S.store.settings();
+      s.lastExport = new Date().toISOString();
+      set(K_SETTINGS, s);
+    },
+
+    /* Quiet nudge: enough readings to be worth losing, and nothing exported
+       recently. Returns null when there is nothing to say. */
+    backupNudge: function () {
+      var s = S.store.settings();
+      if (s.nudgeOff) return null;
+      var n = S.store.readings().length;
+      if (n < 10) return null;
+      var days = s.lastExport
+        ? Math.floor((Date.now() - new Date(s.lastExport).getTime()) / 86400000)
+        : null;
+      if (days !== null && days < 30) return null;
+      return { readings: n, daysSince: days };
+    },
+    dismissNudge: function () {
+      var s = S.store.settings();
+      s.nudgeOff = true;
+      set(K_SETTINGS, s);
+    },
+
     /* ---- backup ---- */
     exportAll: function () {
       return JSON.stringify({

@@ -38,15 +38,17 @@
   if (pref) root.setAttribute('data-theme', pref);
 
   function mount() {
-    var nav = document.querySelector('nav.main');
-    if (!nav || nav.querySelector('.theme-toggle')) return;
+    /* Prefer the right-hand header cluster; fall back to the nav itself. */
+    var host = document.querySelector('.top-right') || document.querySelector('nav.main');
+    if (!host || host.querySelector('.theme-toggle')) return;
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'theme-toggle';
     b.addEventListener('click', function () {
       apply(current() === 'dark' ? 'light' : 'dark', true);
     });
-    nav.appendChild(b);
+    var settings = host.querySelector('.top-settings');
+    if (settings) host.insertBefore(b, settings); else host.appendChild(b);
     apply(current(), false);
   }
 

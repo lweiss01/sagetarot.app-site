@@ -99,34 +99,72 @@
     render();
   }
 
-  document.getElementById('nav').addEventListener('click', function (e) {
+  document.querySelector('.topbar').addEventListener('click', function (e) {
     var b = e.target.closest('[data-nav]');
     if (!b) return;
     e.preventDefault();
-    if (b.getAttribute('data-nav') === 'draw') { state.openReadingId = null; }
-    go(b.getAttribute('data-nav'));
+    var to = b.getAttribute('data-nav');
+    if (to === 'draw') state.openReadingId = null;
+    /* In guest mode the Journal tab shows the guest list instead. */
+    if (to === 'journal' && state.guest) to = 'guests';
+    go(to);
   });
-  document.querySelector('.brand').addEventListener('click', function (e) {
-    e.preventDefault(); state.openReadingId = null; go('draw');
-  });
+  /* The brand carries data-nav="draw", so the header listener above covers it. */
 
-  /* Hidden while reading for someone else, so a friend on your laptop cannot
-     wander into your saved readings. */
-  var PRIVATE_TABS = ['journal', 'themes', 'yours'];
+  /* Four top-level sections; everything else is a tab inside one of them. */
+  var SECTION = {
+    draw:'read', reading:'journal',
+    journal:'journal', themes:'journal', guests:'journal',
+    library:'deck', mine:'deck', yours:'deck', card:'deck',
+    study:'learn', learn:'learn',
+    settings:'settings'
+  };
+  var NAV_SECTION = { draw:'read', journal:'journal', library:'deck', study:'learn', settings:'settings' };
 
   function syncNav() {
-    var map = { draw:'draw', reading: state.guest ? 'guests' : 'journal',
-                journal:'journal', guests:'guests', themes:'themes',
-                library:'library', card:'library', yours:'yours',
-                study:'study', learn:'learn', settings:'settings' };
-    var want = map[state.view] || state.view;
-    document.querySelectorAll('#nav button').forEach(function (b) {
-      var id = b.getAttribute('data-nav');
-      b.classList.toggle('active', id === want);
-      if (PRIVATE_TABS.indexOf(id) >= 0) b.classList.toggle('hidden', state.guest);
-      if (id === 'guests') b.classList.toggle('hidden', !state.guest);
+    var want = SECTION[state.view] || state.view;
+    document.querySelectorAll('#nav button, .top-settings').forEach(function (b) {
+      b.classList.toggle('active', NAV_SECTION[b.getAttribute('data-nav')] === want);
     });
     document.body.classList.toggle('guest-mode', state.guest);
+
+    var chip = document.getElementById('streakChip');
+    if (chip) {
+      var n = state.guest ? 0 : S.store.streak();
+      chip.textContent = n ? n + (n === 1 ? ' day running' : ' days running') : '';
+    }
+  }
+
+  /* Tab strip shown at the top of a section. */
+  function sectionTabs(tabs) {
+    return '<div class="sec-tabs">' + tabs.map(function (t) {
+      return '<button class="sec-tab' + (t.view === state.view ? ' on' : '') +
+        '" data-action="go-view" data-view="' + t.view + '">' + esc(t.label) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function journalTabs() {
+    if (state.guest) return '';           // guests see only their own list
+    return sectionTabs([
+      { view:'journal', label:'Entries' },
+      { view:'themes',  label:'Themes' }
+    ]);
+  }
+
+  function deckTabs() {
+    var tabs = [{ view:'library', label:'Library' }];
+    if (!state.guest) {
+      tabs.push({ view:'mine',  label:'My Cards' });
+      tabs.push({ view:'yours', label:'Birth Cards' });
+    }
+    return sectionTabs(tabs);
+  }
+
+  function learnTabs() {
+    return sectionTabs([
+      { view:'study', label:'Study' },
+      { view:'learn', label:'Learn About Tarot' }
+    ]);
   }
 
   /* ================= view: new reading ================= */
@@ -136,111 +174,173 @@
     return buildBoard();
   }
 
-  /* ---- daily practice strip ---- */
+  /* The daily strip and streak now live in the Read band and the site header. */
 
-  function dailyPanel() {
-    var days = S.store.byDay();
-    var streak = S.store.streak();
-    var todayKey = S.dayKey(new Date());
-    var today = days[todayKey];
+  /* ================= first run ================= */
 
-    var h = '<div class="daily"><div class="daily-head">' +
-      '<div><div class="eyebrow" style="font-size:.66rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:6px">Daily practice</div>' +
-      '<h3>' + (today ? 'You have drawn today' : 'You have not drawn today') + '</h3></div>';
+  function viewWelcome() {
+    return '<div class="wrap view welcome">' +
+      '<div class="welcome-inner">' +
+        '<div class="eyebrow">Welcome</div>' +
+        '<h1>Sage is a journal for readings you do yourself</h1>' +
+        '<p class="lede">You shuffle and pull the cards from your own deck. Sage records what came out, ' +
+        'writes a detailed reading from it, keeps every one, and shows you what starts repeating across them. ' +
+        'There is no deck in here to shuffle — that part stays in your hands.</p>' +
 
-    if (streak > 0) {
-      h += '<div class="streak"><span class="n">' + streak + '</span>' +
-        '<span class="l">day' + (streak === 1 ? '' : 's') + ' running</span></div>';
-    }
-    h += '</div>';
+        '<div class="welcome-points">' +
+          '<div><b>Everything stays in this browser</b>' +
+          '<p>Your readings, notes and settings are saved on this device only. Nothing is sent anywhere and there ' +
+          'is no account. That also means clearing your browser data erases the lot — an exported backup is the ' +
+          'only copy that survives it.</p></div>' +
 
-    /* thirty-day strip, oldest to newest */
-    h += '<div class="strip">';
-    for (var i = 29; i >= 0; i--) {
-      var d = new Date();
-      d.setDate(d.getDate() - i);
-      var key = S.dayKey(d);
-      var rec = days[key];
-      var isToday = key === todayKey;
-      var label = d.toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short' });
+          '<div><b>New to tarot?</b>' +
+          '<p>The Learn section explains how the deck is put together, what the suits mean and what reversed ' +
+          'actually means, in plain English. Start with a single card a day; it teaches more than the occasional ' +
+          'big spread.</p></div>' +
 
-      if (rec) {
-        var card = S.cardById(rec.draws[0].cardId);
-        h += '<button class="day filled' + (isToday ? ' today' : '') + '" data-action="open-reading" data-id="' +
-          rec.id + '" title="' + esc(label + ' — ' + (card ? card.name : '')) + '">' +
-          (card ? S.cardImgHTML(card, 100) : '') + '</button>';
-      } else {
-        h += '<span class="day empty' + (isToday ? ' today' : '') + '" title="' + esc(label) + '"></span>';
-      }
-    }
-    h += '</div>';
+          '<div><b>Been here before?</b>' +
+          '<p>If you have used Sage on another device or lost your data, import a backup file and your readings, ' +
+          'notes and preferences come straight back. API keys are never in the backup, so those get re-entered.</p></div>' +
+        '</div>' +
 
-    if (today) {
-      var c0 = S.cardById(today.draws[0].cardId);
-      h += '<p class="daily-note">Today you drew <b>' + esc(c0 ? c0.name : '') + '</b>' +
-        (today.draws[0].reversed ? ', reversed' : '') + '. ' +
-        (S.cardShort(c0) ? esc(S.cardShort(c0)) : '') + '</p>';
-    } else {
-      h += '<div class="actions" style="margin-top:14px">' +
-        '<button class="btn" data-action="daily-draw">Draw today\'s card</button></div>' +
-        '<p class="daily-note">One card a day is how interpretation actually gets learned — far more than the occasional big spread.</p>';
-    }
-
-    return h + '</div>';
+        '<div class="actions welcome-actions">' +
+          '<button class="btn" data-action="welcome-start">Start fresh</button>' +
+          '<button class="btn ghost" data-action="welcome-import">Import a backup</button>' +
+          '<button class="btn quiet" data-action="welcome-learn">Read the basics first</button>' +
+        '</div>' +
+        '<input type="file" id="importFile" accept="application/json" class="hidden">' +
+      '</div></div>';
   }
 
-  function guestToggle() {
-    return '<div class="guest-toggle ' + (state.guest ? 'on' : '') + '">' +
+  function backupBar() {
+    var n = S.store.backupNudge();
+    if (!n) return '';
+    return '<div class="nudge">' +
+      '<span><b>' + n.readings + ' readings and no recent backup.</b> ' +
+      (n.daysSince === null
+        ? 'You have never exported one — and a backup is the only copy that survives clearing your browser data.'
+        : 'Your last export was ' + n.daysSince + ' days ago.') + '</span>' +
+      '<span class="nudge-acts">' +
+        '<button class="btn ghost sm" data-action="export">Export now</button>' +
+        '<button class="btn quiet sm" data-action="dismiss-nudge">Not now</button>' +
+      '</span></div>';
+  }
+
+  function guestSwitch() {
+    return '<div class="guest-switch ' + (state.guest ? 'on' : '') + '">' +
       '<div class="rev-toggle ' + (state.guest ? 'on' : '') + '" data-action="toggle-guest">' +
-        '<span class="sw"></span><span class="lbl">Reading for someone else</span>' +
+        '<span class="sw"></span><span class="lbl">For someone else</span>' +
       '</div>' +
       (state.guest
-        ? '<label class="guest-name"><span>Whose reading is it?</span>' +
-          '<input type="text" id="guestName" value="' + esc(state.guestName) + '" placeholder="Optional — a name"></label>' +
-          '<p class="hint">Guest readings are filed separately. They stay out of your journal, your themes, your streak, ' +
-          'your draw counts and your card accuracy, and your own cards are not looked for in them. ' +
-          'Your journal, themes and Your Cards tabs are hidden while this is on.</p>'
-        : '<p class="hint">Turn this on before drawing for a friend, and none of it will touch your own stats.</p>') +
+        ? '<input type="text" id="guestName" value="' + esc(state.guestName) + '" placeholder="their name">' +
+          '<span class="note">Filed separately — nothing here touches your own journal, themes or streak.</span>'
+        : '') +
       '</div>';
   }
 
+  /* The Read page: a band across the top for today, then spreads on the left
+     and what you were doing lately on the right. */
   function chooseSpread() {
-    var h = '<div class="wrap view">' +
-      '<div class="page-head">' +
-        '<div class="eyebrow">' + (state.guest ? 'Guest Reading' : 'New Reading') + '</div>' +
-        '<h1>Choose a spread</h1>' +
-        '<p class="lede">Shuffle and draw from your own deck, then record each card in its place. ' +
-        'The reading is written once every position is filled.</p>' +
-      '</div>';
+    var days = state.guest ? {} : S.store.byDay();
+    var todayKey = S.dayKey(new Date());
+    var today = days[todayKey];
+    var todayCard = today ? S.cardById(today.draws[0].cardId) : null;
 
-    h += guestToggle();
+    var h = '<div class="read">';
+    if (!state.guest) h += backupBar();
 
-    if (!state.guest && S.store.readings().length) h += '<hr class="divider">' + dailyPanel();
-    h += '<hr class="divider">';
+    /* ---- band ---- */
+    h += '<div class="read-band"><div class="band-inner">' +
+      '<div class="band-top">' +
+        '<span class="eyebrow">' + esc(new Date().toLocaleDateString(undefined,
+          { weekday:'long', day:'numeric', month:'long' })) + '</span>' +
+        guestSwitch() +
+      '</div>' +
+      '<div class="band-cols"><div class="band-lead">';
 
-    h += '<div class="spread-grid">';
+    if (state.guest) {
+      h += '<h1>A reading for someone else</h1>' +
+        '<p class="lede">Draw as normal. It will be saved under Guest Readings and counted towards none of your own statistics.</p>';
+    } else if (today) {
+      h += '<h1>You have drawn today</h1>' +
+        '<p class="lede">' + esc(todayCard ? todayCard.name : '') +
+        (today.draws[0].reversed ? ', reversed' : '') +
+        (todayCard && S.cardShort(todayCard) ? ' — ' + esc(S.cardShort(todayCard)) : '') + '</p>' +
+        '<div class="actions">' +
+        '<button class="btn ghost" data-action="open-reading" data-id="' + today.id + '">Open today\'s reading</button>' +
+        '</div>';
+    } else {
+      h += '<h1>You haven\'t drawn today</h1>' +
+        '<p class="lede">Shuffle, cut, pull one. A card a day teaches interpretation faster than the occasional big spread.</p>' +
+        '<div class="actions"><button class="btn" data-action="daily-draw">Draw today\'s card</button></div>';
+    }
+    h += '</div>';
+
+    if (!state.guest) {
+      h += '<div class="band-strip"><div class="eyebrow">Last thirty days</div><div class="strip">';
+      for (var i = 29; i >= 0; i--) {
+        var d = new Date(); d.setDate(d.getDate() - i);
+        var key = S.dayKey(d), rec = days[key], isToday = key === todayKey;
+        var label = d.toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short' });
+        if (rec) {
+          var c = S.cardById(rec.draws[0].cardId);
+          h += '<button class="day filled' + (isToday ? ' today' : '') + '" data-action="open-reading" data-id="' +
+            rec.id + '" title="' + esc(label + ' — ' + (c ? c.name : '')) + '">' +
+            (c ? S.cardImgHTML(c, 100) : '') + '</button>';
+        } else {
+          h += '<span class="day empty' + (isToday ? ' today' : '') + '" title="' + esc(label) + '"></span>';
+        }
+      }
+      h += '</div></div>';
+    }
+    h += '</div></div></div>';
+
+    /* ---- two columns ---- */
+    h += '<div class="read-grid"><div class="read-spreads">' +
+      '<div class="eyebrow">' + (state.guest ? 'Choose a spread' : 'Or choose a spread') + '</div><div class="rows">';
 
     S.SPREADS.forEach(function (sp) {
       var pips = '';
-      for (var i = 0; i < sp.positions.length; i++) pips += '<i></i>';
-      h += '<button class="spread-card" data-action="pick-spread" data-id="' + sp.id + '">' +
-        '<span class="tag">' + esc(sp.tag) + '</span>' +
-        '<h3>' + esc(sp.name) + '</h3>' +
-        '<p>' + esc(sp.blurb) + '</p>' +
-        '<span class="mini-layout">' + pips + '</span>' +
-        '</button>';
+      for (var p = 0; p < sp.positions.length; p++) pips += '<i></i>';
+      h += '<button class="row spread" data-action="pick-spread" data-id="' + sp.id + '">' +
+        '<span><span class="rname">' + esc(sp.name) + '</span>' +
+        '<span class="rsub">' + esc(sp.blurb) + '</span></span>' +
+        '<span class="pips">' + pips + '</span></button>';
     });
+    h += '</div></div>';
 
-    h += '</div>';
+    /* right rail */
+    h += '<div class="read-rail">';
 
-    var recent = (state.guest ? S.store.guestReadings() : S.store.readings()).slice(0, 3);
-    if (recent.length) {
-      h += '<hr class="divider"><h2 style="margin-bottom:18px">Pick up where you left off</h2><div class="journal-list">';
-      recent.forEach(function (r) { h += journalItem(r); });
-      h += '</div>';
+    if (!state.guest) {
+      var all = S.store.readings();
+      var T = all.length >= 2 ? S.findThemes(all) : null;
+      if (T && T.notes.length) {
+        h += '<div class="eyebrow">Returning lately</div>' +
+          '<p class="rail-lead">' + esc(T.notes[0].title) + '</p>' +
+          '<p class="rail-sub">' + esc(firstSentences(T.notes[0].text, 2)) + '</p>' +
+          '<button class="btn quiet sm" data-action="go-view" data-view="themes">All themes →</button>' +
+          '<hr class="divider tight">';
+      }
     }
-    h += '</div>';
+
+    var recent = (state.guest ? S.store.guestReadings() : S.store.readings()).slice(0, 4);
+    if (recent.length) {
+      h += '<div class="eyebrow">Pick up where you left off</div><div class="rows">';
+      recent.forEach(function (r) { h += journalItem(r, true); });
+      h += '</div>';
+    } else {
+      h += '<div class="eyebrow">Nothing yet</div>' +
+        '<p class="rail-sub">Your saved readings will collect here.</p>';
+    }
+
+    h += '</div></div></div>';
     return h;
+  }
+
+  function firstSentences(text, n) {
+    var parts = String(text).match(/[^.!?]+[.!?]+/g) || [text];
+    return parts.slice(0, n).join(' ').trim();
   }
 
   function slotWidth(cols) {
@@ -738,59 +838,74 @@
 
   /* ================= view: journal ================= */
 
-  function journalItem(r) {
+  function journalItem(r, compact) {
     var d = new Date(r.date);
     var sp = S.getSpread(r.spreadId);
+    var max = compact ? 3 : 5;
     var thumbs = '';
-    r.draws.slice(0, 5).forEach(function (dr) {
+    r.draws.slice(0, max).forEach(function (dr) {
       var c = S.cardById(dr.cardId);
-      if (c) thumbs += '<span style="display:inline-block;width:23px;height:39px;overflow:hidden;border-radius:2px;border:1px solid var(--line)">' +
-        S.cardImgHTML(c, 100) + '</span>';
+      if (c) thumbs += '<span class="th">' + S.cardImgHTML(c, 100) + '</span>';
     });
-    if (r.draws.length > 5) thumbs += '<span class="more">+' + (r.draws.length - 5) + '</span>';
+    if (r.draws.length > max) thumbs += '<span class="more">+' + (r.draws.length - max) + '</span>';
 
-    return '<button class="journal-item" data-action="open-reading" data-id="' + r.id + '">' +
-      '<span class="date"><span class="d">' + d.getDate() + '</span>' +
-        '<span class="m">' + d.toLocaleDateString(undefined, { month: 'short' }) + ' ' + d.getFullYear() + '</span></span>' +
-      '<span><span class="q">' + esc(r.question || (sp ? sp.name : 'Untitled reading')) + '</span>' +
-        '<span class="sub">' + esc(sp ? sp.name : '') + ' · ' + r.draws.length + ' cards' +
-        (r.topic && r.topic !== 'none' && S.getTopic(r.topic) ? ' · ' + esc(S.getTopic(r.topic).chip.toLowerCase()) : '') +
-        (r.guest ? ' · <b class="guest-flag">guest' + (r.guestName ? ': ' + esc(r.guestName) : '') + '</b>' : '') +
-        (r.note ? ' · noted' : '') +
-        (r.outcome && r.outcome.rating
-          ? ' · <b class="rate-dot ' + r.outcome.rating + '"></b>' + esc(RATE_LABEL[r.outcome.rating].toLowerCase())
-          : '') +
-        '</span></span>' +
+    var title = esc(r.question || (sp ? sp.name : 'Untitled reading'));
+    var sub = esc(sp ? sp.name : '') + ' · ' + r.draws.length + ' cards' +
+      (r.topic && r.topic !== 'none' && S.getTopic(r.topic) ? ' · ' + esc(S.getTopic(r.topic).chip.toLowerCase()) : '') +
+      (r.guest ? ' · <b class="guest-flag">guest' + (r.guestName ? ': ' + esc(r.guestName) : '') + '</b>' : '') +
+      (r.note ? ' · noted' : '') +
+      (r.outcome && r.outcome.rating
+        ? ' · <b class="rate-dot ' + r.outcome.rating + '"></b>' + esc(RATE_LABEL[r.outcome.rating].toLowerCase())
+        : '');
+
+    if (compact) {
+      return '<button class="row entry compact" data-action="open-reading" data-id="' + r.id + '">' +
+        '<span class="thumbs">' + thumbs + '</span>' +
+        '<span><span class="rname">' + title + '</span><span class="rsub">' + sub + '</span></span>' +
+        '</button>';
+    }
+
+    return '<button class="row entry" data-action="open-reading" data-id="' + r.id + '">' +
+      '<span class="rdate"><b>' + d.getDate() + '</b>' +
+        '<i>' + esc(d.toLocaleDateString(undefined, { month: 'short' })) + ' ' + d.getFullYear() + '</i></span>' +
+      '<span><span class="rname">' + title + '</span><span class="rsub">' + sub + '</span></span>' +
       '<span class="thumbs">' + thumbs + '</span></button>';
   }
 
   function viewJournal() {
     var all = S.store.readings();
     var h = '<div class="wrap view"><div class="page-head">' +
-      '<div class="eyebrow">Journal</div><h1>Your readings</h1>' +
+      '<div class="eyebrow">Journal</div><h1>' +
+      (all.length ? all.length + (all.length === 1 ? ' reading' : ' readings') : 'Your readings') + '</h1>' +
       '<p class="lede">Every reading you have saved, newest first. Open one to reread it, add a note, or record what actually happened.</p>' +
-      '</div>';
+      '</div>' + journalTabs();
+
+    var guests = S.store.guestReadings();
+    h += '<div class="split' + (guests.length ? '' : ' solo') + '"><div class="split-main">';
 
     if (!all.length) {
       h += '<div class="empty"><div class="glyph">✦</div><h3>Nothing here yet</h3>' +
         '<p>Your saved readings will collect here.</p>' +
         '<button class="btn ghost" style="margin-top:16px" data-action="goto-draw">Draw your first spread</button></div>';
     } else {
-      h += '<div class="journal-list">';
+      h += '<div class="rows">';
       all.forEach(function (r) { h += journalItem(r); });
       h += '</div>';
     }
+    h += '</div>';
 
-    var guests = S.store.guestReadings();
     if (guests.length) {
-      h += '<hr class="divider"><div class="note-card"><h4>' + guests.length +
-        ' guest reading' + (guests.length === 1 ? '' : 's') + '</h4>' +
-        '<p>Readings you drew for other people are filed separately and count towards none of your own statistics.</p>' +
-        '<div class="actions" style="margin-top:12px">' +
-        '<button class="btn ghost sm" data-action="goto-guests">View them</button>' +
-        '<button class="btn danger sm" data-action="clear-guests">Delete them all</button></div></div>';
+      h += '<div class="split-rail"><div class="eyebrow">Guest readings</div>' +
+        '<p class="rail-sub">Drawn for other people, and counted towards none of your own statistics.</p>' +
+        '<div class="rows">';
+      guests.slice(0, 6).forEach(function (r) { h += journalItem(r, true); });
+      h += '</div><div class="actions" style="margin-top:16px">' +
+        (guests.length > 6
+          ? '<button class="btn quiet sm" data-action="goto-guests">All ' + guests.length + ' →</button>' : '') +
+        '<button class="btn quiet sm" data-action="clear-guests">Delete all</button></div></div>';
     }
-    return h + '</div>';
+
+    return h + '</div></div>';
   }
 
   /* ================= view: guest readings ================= */
@@ -836,9 +951,9 @@
   function viewThemes() {
     var all = S.store.readings();
     var h = '<div class="wrap view"><div class="page-head">' +
-      '<div class="eyebrow">Themes</div><h1>What keeps coming up</h1>' +
+      '<div class="eyebrow">Journal</div><h1>What keeps coming up</h1>' +
       '<p class="lede">Patterns across your readings rather than inside any one of them. Cards that keep returning, ' +
-      'the element your life is currently being decided in, and the stages you keep meeting.</p></div>';
+      'the element your life is currently being decided in, and the stages you keep meeting.</p></div>' + journalTabs();
 
     if (all.length < 2) {
       h += '<div class="empty"><div class="glyph">✦</div><h3>Not enough readings yet</h3>' +
@@ -944,9 +1059,10 @@
       return (c.name + ' ' + c.kwU.join(' ') + ' ' + c.kwR.join(' ') + ' ' + c.element).toLowerCase().indexOf(q) >= 0;
     });
     if (!cards.length) return '<p style="grid-column:1/-1;color:var(--muted)">Nothing matches that search.</p>';
+    var drawn = S.store.drawCounts();
     return cards.map(function (c) {
       return '<button class="lib-card" data-action="open-card" data-id="' + c.id + '">' +
-        '<span class="mastery m' + mastery(c.id) + '"></span>' +
+        (drawn[c.id] ? '<span class="drawn-dot" title="You have drawn this ' + drawn[c.id] + '×"></span>' : '') +
         '<span class="thumb">' + S.cardImgHTML(c, 200) + '</span>' +
         '<span class="nm">' + esc(c.name) + '</span></button>';
     }).join('');
@@ -959,9 +1075,10 @@
     S.CARDS.forEach(function (c) { if (mastery(c.id) >= 2) known++; });
 
     var h = '<div class="wrap view"><div class="page-head">' +
-      '<div class="eyebrow">Library</div><h1>All 78 cards</h1>' +
+      '<div class="eyebrow">Deck</div><h1>Seventy-eight cards</h1>' +
       '<p class="lede">The full deck with upright and reversed meanings, symbolism, element and attribution. ' +
-      'The dot on each card tracks how well you know it: grey unseen, rose shaky, gold getting there, green solid.</p></div>';
+      'A dot in the corner marks the cards you have drawn at least once.</p></div>' +
+      deckTabs();
 
     h += '<div class="panel" style="margin-bottom:24px"><div class="stat-row">' +
       '<div class="stat"><div class="v">' + known + '<span style="font-size:1rem;color:var(--muted)">/78</span></div><div class="l">Cards you know</div></div>' +
@@ -979,6 +1096,52 @@
       '</div></div>';
 
     h += '<div class="lib-grid">' + libGrid() + '</div></div>';
+    return h;
+  }
+
+  /* The cards you have actually pulled, most-drawn first. */
+  function viewMine() {
+    var counts = S.store.drawCounts();
+    var ids = Object.keys(counts);
+    var acc = S.store.cardAccuracy();
+
+    var h = '<div class="wrap view"><div class="page-head">' +
+      '<div class="eyebrow">Deck</div><h1>Cards you have drawn</h1>' +
+      '<p class="lede">The ' + ids.length + ' card' + (ids.length === 1 ? '' : 's') +
+      ' that have actually come out of your deck, most frequent first. These are the ones worth knowing best — ' +
+      'they are the vocabulary your readings are actually written in.</p></div>' + deckTabs();
+
+    if (!ids.length) {
+      h += '<div class="empty"><div class="glyph">✦</div><h3>Nothing drawn yet</h3>' +
+        '<p>Cards appear here once you have recorded them in a reading.</p>' +
+        '<button class="btn ghost" style="margin-top:16px" data-action="goto-draw">Draw a reading</button></div></div>';
+      return h;
+    }
+
+    var cards = ids.map(function (id) { return { card: S.cardById(id), n: counts[id] }; })
+      .filter(function (x) { return x.card; })
+      .sort(function (a, b) { return b.n - a.n || a.card.name.localeCompare(b.card.name); });
+
+    h += '<div class="panel" style="margin-bottom:24px"><div class="stat-row">' +
+      '<div class="stat"><div class="v">' + ids.length + '<span style="font-size:1rem;color:var(--muted)">/78</span></div>' +
+        '<div class="l">Seen</div></div>' +
+      '<div class="stat"><div class="v">' + cards[0].n + '</div><div class="l">Most drawn</div></div>' +
+      '<div class="stat"><div class="v">' + esc(cards[0].card.name) + '</div><div class="l">Which was</div></div>' +
+      '</div></div>';
+
+    h += '<div class="lib-grid">';
+    cards.forEach(function (x) {
+      var a = acc[x.card.id];
+      var tone = '';
+      if (a && a.landed + a.missed >= 2) {
+        tone = a.landed / (a.landed + a.missed) >= 0.7 ? ' good' : (a.landed / (a.landed + a.missed) <= 0.34 ? ' poor' : '');
+      }
+      h += '<button class="lib-card" data-action="open-card" data-id="' + x.card.id + '">' +
+        '<span class="thumb">' + S.cardImgHTML(x.card, 200) + '</span>' +
+        '<span class="nm">' + esc(x.card.name) +
+        '<span class="times' + tone + '">drawn ' + x.n + '×</span></span></button>';
+    });
+    h += '</div></div>';
     return h;
   }
 
@@ -1052,11 +1215,12 @@
         var sp = S.getSpread(a.r.spreadId);
         var posName = '';
         sp.positions.forEach(function (p) { if (p.id === a.d.positionId) posName = p.name; });
-        h += '<button class="journal-item" data-action="open-reading" data-id="' + a.r.id + '">' +
-          '<span class="date"><span class="d">' + new Date(a.r.date).getDate() + '</span>' +
-          '<span class="m">' + new Date(a.r.date).toLocaleDateString(undefined, { month:'short' }) + '</span></span>' +
-          '<span><span class="q">' + esc(a.r.question || sp.name) + '</span>' +
-          '<span class="sub">as ' + esc(posName) + ' · ' + (a.d.reversed ? 'reversed' : 'upright') + '</span></span>' +
+        var ad = new Date(a.r.date);
+        h += '<button class="row entry" data-action="open-reading" data-id="' + a.r.id + '">' +
+          '<span class="rdate"><b>' + ad.getDate() + '</b>' +
+          '<i>' + esc(ad.toLocaleDateString(undefined, { month:'short' })) + '</i></span>' +
+          '<span><span class="rname">' + esc(a.r.question || sp.name) + '</span>' +
+          '<span class="rsub">as ' + esc(posName) + ' · ' + (a.d.reversed ? 'reversed' : 'upright') + '</span></span>' +
           '<span></span></button>';
       });
       h += '</div>';
@@ -1145,9 +1309,9 @@
       var st = S.store.study();
       var drawn = Object.keys(S.store.drawCounts()).length;
       return '<div class="wrap view"><div class="page-head">' +
-        '<div class="eyebrow">Study</div><h1>Learn the deck</h1>' +
+        '<div class="eyebrow">Learn</div><h1>Learn the deck</h1>' +
         '<p class="lede">Short quizzes drawn from the whole deck, weighted toward cards you have actually pulled ' +
-        'in your readings and cards you have got wrong before. Ten questions at a time.</p></div>' +
+        'in your readings and cards you have got wrong before. Ten questions at a time.</p></div>' + learnTabs() +
         '<div class="panel" style="margin-bottom:26px"><div class="stat-row">' +
           '<div class="stat"><div class="v">' + (st.quizzes || 0) + '</div><div class="l">Answered</div></div>' +
           '<div class="stat"><div class="v">' + drawn + '</div><div class="l">Cards you have drawn</div></div>' +
@@ -1225,11 +1389,12 @@
 
   function viewYours() {
     var s = S.store.settings();
-    var h = '<div class="wrap view reading"><div class="page-head">' +
-      '<div class="eyebrow">Your Cards</div><h1>Cards tied to your birthday</h1>' +
+    var h = '<div class="wrap view doc"><div class="page-head">' +
+      '<div class="eyebrow">Deck</div><h1>Cards tied to your birthday</h1>' +
       '<p class="lede">Two old traditions that connect you to particular cards in the deck. ' +
       'Worth being straight about what these are: conventions, not mechanisms. They do not make readings ' +
-      'more accurate — they give you a personal thread through the deck, which is its own kind of useful.</p></div>';
+      'more accurate — they give you a personal thread through the deck, which is its own kind of useful.</p></div>' +
+      deckTabs();
 
     if (!s.birthDate) {
       h += '<div class="empty"><div class="glyph">✦</div><h3>No birth date set</h3>' +
@@ -1315,10 +1480,11 @@
   /* ================= view: learn ================= */
 
   function viewLearn() {
-    var h = '<div class="wrap view reading"><div class="page-head">' +
+    var h = '<div class="wrap view doc"><div class="page-head">' +
       '<div class="eyebrow">Learn</div><h1>Starting from scratch</h1>' +
       '<p class="lede">Everything you need to make sense of a reading, in plain English. ' +
-      'You do not have to read it in order — but the first three sections do most of the work.</p></div>';
+      'You do not have to read it in order — but the first three sections do most of the work.</p></div>' +
+      learnTabs();
 
     h += '<nav class="learn-toc">';
     S.LEARN.forEach(function (s) {
@@ -1361,7 +1527,7 @@
   function providerFields(s) {
     var ai = s.ai || {};
     var configured = S.configuredProviders();
-    var h = '';
+    var h = '<div class="ai-layout"><div class="ai-keys">';
 
     S.PROVIDERS.forEach(function (p) {
       var c = ai[p.id] || {};
@@ -1376,19 +1542,29 @@
         '</div></div>';
     });
 
+    h += '</div><div class="ai-primary">';
+
     if (configured.length > 1) {
-      h += '<label class="field" style="max-width:340px;margin-top:20px"><span class="lab">Primary provider</span>' +
+      h += '<label class="field"><span class="lab">Primary provider</span>' +
         '<select id="aiPrimary">' +
         configured.map(function (p) {
           return '<option value="' + p.id + '"' + (S.primaryProvider().id === p.id ? ' selected' : '') + '>' +
             esc(p.name) + '</option>';
         }).join('') +
         '</select><span class="hint">“Deepen with AI” asks this one. A second button convenes the council: ' +
-        'all ' + configured.length + ' answer the same prompt independently, then your primary writes a short note on ' +
-        'where they agreed and where they diverged.</span></label>';
+        'all ' + configured.length + ' answer the same prompt independently, then your primary writes a short note ' +
+        'on where they agreed and where they diverged.</span></label>';
+    } else if (configured.length === 1) {
+      h += '<div class="ai-note"><b>' + esc(configured[0].name) + '</b>' +
+        '<p>Readings gain a “Deepen with AI” button. Add a second key and you can also convene a council — ' +
+        'each provider answers independently, then they are compared.</p></div>';
+    } else {
+      h += '<div class="ai-note"><b>No keys yet</b>' +
+        '<p>Everything in Sage works without one. A key only adds a second, freshly written interpretation ' +
+        'alongside the built-in reading.</p></div>';
     }
 
-    return h;
+    return h + '</div></div>';
   }
 
   function viewSettings() {
@@ -1397,69 +1573,65 @@
     return '<div class="wrap view"><div class="page-head">' +
       '<div class="eyebrow">Settings</div><h1>Setup and data</h1></div>' +
 
-      '<div class="panel" style="margin-bottom:24px"><h3 style="margin-bottom:16px">Your birth date</h3>' +
-        '<label class="field" style="max-width:320px"><span class="lab">Date of birth (optional)</span>' +
-        '<input type="date" id="birthDate" value="' + esc(s.birthDate || '') + '">' +
-        '<span class="hint">Used only for the Your Cards page — your birth card, your card for this year, ' +
-        'and the four cards belonging to your sun sign. Day, month and year only: no time, no location, ' +
-        'and it never leaves this browser. Leave it blank and that page simply stays empty.</span></label>' +
-        '<button class="btn ghost sm" data-action="save-settings">Save</button>' +
-        (s.birthDate ? '<button class="btn quiet sm" data-action="clear-birth">Remove it</button>' : '') +
-      '</div>' +
+      '<div class="set-grid">' +
 
-      '<div class="panel" style="margin-bottom:24px"><h3 style="margin-bottom:16px">Reading voice</h3>' +
-        '<label class="field" style="max-width:520px"><span class="lab">How readings are written</span>' +
-        '<select id="voice">' +
-          '<option value="plain"' + (s.voice === 'plain' ? ' selected' : '') + '>Plain language — everyday words, terms explained</option>' +
-          '<option value="trad"' + (s.voice === 'trad' ? ' selected' : '') + '>Traditional — the older, more atmospheric register</option>' +
-        '</select>' +
-        '<span class="hint">Changes both the generated commentary and the card meanings themselves. ' +
-        'Readings are rewritten on the fly, so this applies to everything you have already saved as well as anything new.</span></label>' +
-        '<div class="voice-sample">' +
-          '<div><b>Plain</b><p>Most of your cards are Cups. Cups is the suit about feelings and relationships — so however practical ' +
-            'this looks on paper, it is being decided emotionally.</p></div>' +
-          '<div><b>Traditional</b><p>This reading runs deep and wet. The weight of Cups says that whatever the situation looks like ' +
-            'on paper, it is being decided emotionally.</p></div>' +
+      '<div class="panel"><h3>Back up your data</h3>' +
+        '<p class="panel-lead">' + all.length + ' readings are stored in this browser. They survive closing the app ' +
+        'but not clearing site data — an export is the only copy that does.</p>' +
+        '<div class="actions">' +
+          '<button class="btn ghost sm" data-action="export">Export backup</button>' +
+          '<button class="btn ghost sm" data-action="import">Import backup</button>' +
+          '<button class="btn danger sm" data-action="wipe">Erase everything</button>' +
         '</div>' +
-        '<button class="btn ghost sm" data-action="save-settings">Save</button>' +
+        '<input type="file" id="importFile" accept="application/json" class="hidden">' +
+        (S.store.available ? '' : '<p class="hint" style="color:var(--rose);margin-top:14px">Local storage is unavailable ' +
+          'here, so readings cannot be saved. Try serving the folder over http rather than opening the file directly.</p>') +
       '</div>' +
 
-      '<div class="two-col">' +
-      '<div class="panel"><h3 style="margin-bottom:16px">Card artwork</h3>' +
-        '<label class="field"><span class="lab">Image source</span>' +
-        '<select id="imgSource">' +
-          '<option value="local"' + (s.imageSource !== 'commons' ? ' selected' : '') + '>The images folder (works offline)</option>' +
-          '<option value="commons"' + (s.imageSource === 'commons' ? ' selected' : '') + '>Wikimedia Commons (needs an internet connection)</option>' +
-        '</select>' +
-        '<span class="hint">The 78 Rider–Waite images ship in the <code>images</code> folder beside index.html, so the ' +
-        'default needs no network at all. Any file that is missing falls back to Wikimedia on its own. ' +
-        'To use scans of your own deck, replace the files in that folder — the exact filenames are listed in ' +
-        '<code>images/README.md</code>, and the check below will tell you if any are wrong.</span></label>' +
-        '<button class="btn ghost sm" data-action="save-settings">Save</button>' +
-        '<button class="btn quiet sm" data-action="art-check">Check all 78 images</button>' +
-        '<div id="artCheck" style="margin-top:18px"></div>' +
-      '</div>' +
-
-      '<div class="panel"><h3 style="margin-bottom:8px">AI readings (optional)</h3>' +
-        '<p style="color:var(--cream-dim);font-size:.92rem">Add a key for any of these and readings gain a ' +
-        '“Deepen with AI” button. Keys are stored only in this browser, sent only to the provider they belong to, ' +
-        'and left out of exported backups. Everything else in Sage works offline without them.</p>' +
-        providerFields(s) +
-        '<button class="btn ghost sm" data-action="save-settings">Save</button>' +
+      '<div class="panel"><h3>Your birth date</h3>' +
+        '<label class="field"><span class="lab">Date of birth (optional)</span>' +
+        '<input type="date" id="birthDate" value="' + esc(s.birthDate || '') + '">' +
+        '<span class="hint">Used only for the Your Cards page. Day, month and year only — no time, no location, ' +
+        'and it never leaves this browser.</span></label>' +
+        '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button>' +
+        (s.birthDate ? '<button class="btn quiet sm" data-action="clear-birth">Remove it</button>' : '') +
       '</div></div>' +
 
-      '<hr class="divider">' +
-      '<div class="panel"><h3 style="margin-bottom:8px">Your data</h3>' +
-      '<p style="color:var(--cream-dim);max-width:64ch">' + all.length + ' readings are stored in this browser\'s local storage. ' +
-      'That means they survive closing the app but not clearing site data — export a backup now and then.</p>' +
-      '<div class="actions" style="margin-top:16px">' +
-        '<button class="btn ghost" data-action="export">Export backup (.json)</button>' +
-        '<button class="btn ghost" data-action="import">Import backup</button>' +
-        '<button class="btn danger" data-action="wipe">Erase everything</button>' +
+      '<div class="panel"><h3>Card artwork</h3>' +
+        '<label class="field"><span class="lab">Image source</span>' +
+        '<select id="imgSource">' +
+          '<option value="local"' + (s.imageSource !== 'commons' ? ' selected' : '') + '>The images folder</option>' +
+          '<option value="commons"' + (s.imageSource === 'commons' ? ' selected' : '') + '>Wikimedia Commons</option>' +
+        '</select>' +
+        '<span class="hint">The 78 images ship with the app, so the folder needs no network at all. ' +
+        'Anything missing falls back to Wikimedia on its own.</span></label>' +
+        '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button>' +
+        '<button class="btn quiet sm" data-action="art-check">Check all 78</button></div>' +
+        '<div id="artCheck"></div>' +
       '</div>' +
-      '<input type="file" id="importFile" accept="application/json" class="hidden">' +
-      (S.store.available ? '' : '<p style="color:var(--rose);margin-top:16px">Local storage is unavailable in this browser context, ' +
-        'so readings cannot be saved. Try serving the folder over http rather than opening the file directly.</p>') +
+
+      '<div class="panel"><h3>Reading voice</h3>' +
+        '<label class="field"><span class="lab">How readings are written</span>' +
+        '<select id="voice">' +
+          '<option value="plain"' + (s.voice === 'plain' ? ' selected' : '') + '>Plain language</option>' +
+          '<option value="trad"' + (s.voice === 'trad' ? ' selected' : '') + '>Traditional</option>' +
+        '</select>' +
+        '<span class="hint">Plain explains its terms as it goes; Traditional uses the older, more atmospheric register. ' +
+        'Changes the commentary and the card meanings, including on readings already saved.</span></label>' +
+        '<div class="voice-sample">' +
+          '<div><b>Plain</b><p>Most of your cards are Cups — the suit about feelings and relationships.</p></div>' +
+          '<div><b>Traditional</b><p>This reading runs deep and wet. The weight of Cups says…</p></div>' +
+        '</div>' +
+        '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button></div>' +
+      '</div>' +
+
+      '<div class="panel wide"><h3>AI readings (optional)</h3>' +
+        '<p class="panel-lead">Add a key for any of these and readings gain a “Deepen with AI” button. ' +
+        'Keys stay in this browser, go only to the provider they belong to, and are left out of exported backups.</p>' +
+        providerFields(s) +
+        '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button></div>' +
+      '</div>' +
+
       '</div></div>';
   }
 
@@ -1610,6 +1782,15 @@
         captureGuestName();
         state.draft = { spreadId: el.getAttribute('data-id'), question: '', topic: 'none', draws: {} };
         render(); break;
+
+      case 'welcome-start':
+        S.store.markWelcomed(); state.view = 'draw'; render(); break;
+      case 'welcome-import':
+        document.getElementById('importFile').click(); break;
+      case 'welcome-learn':
+        S.store.markWelcomed(); go('learn'); break;
+      case 'dismiss-nudge':
+        S.store.dismissNudge(); render(); break;
 
       case 'daily-draw':
         state.draft = { spreadId: 'single', question: '', topic: 'none', draws: {} };
@@ -1814,6 +1995,7 @@
 
       case 'goto-settings': go('settings'); break;
       case 'goto-guests': go('guests'); break;
+      case 'go-view': go(el.getAttribute('data-view')); break;
 
       case 'save-guest-name': {
         var gr = currentRecord();
@@ -1833,8 +2015,10 @@
         var now = new Date();
         link.download = 'Sage backup ' + now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' +
           pad(now.getDate()) + ' ' + pad(now.getHours()) + pad(now.getMinutes()) + '.json';
+        S.store.noteExport();
         link.click();
         URL.revokeObjectURL(url);
+        render();
         break;
       }
       case 'import': document.getElementById('importFile').click(); break;
@@ -1938,6 +2122,16 @@
 
   function render() {
     var html;
+
+    /* Nothing saved and never welcomed: orient first, and offer the import
+       route for anyone who is here because they lost their data. */
+    if (S.store.isFirstRun() && state.view === 'draw') {
+      app.innerHTML = viewWelcome();
+      syncNav();
+      afterRender();
+      return;
+    }
+
     switch (state.view) {
       case 'draw':     html = viewDraw(); break;
       case 'reading':  html = viewReading(); break;
@@ -1947,6 +2141,7 @@
       case 'library':  html = viewLibrary(); break;
       case 'card':     html = viewCard(); break;
       case 'study':    html = viewStudy(); break;
+      case 'mine':     html = viewMine(); break;
       case 'yours':    html = viewYours(); break;
       case 'learn':    html = viewLearn(); break;
       case 'settings': html = viewSettings(); break;
@@ -1984,8 +2179,14 @@
         var rd = new FileReader();
         rd.onload = function () {
           try {
-            S.store.importAll(rd.result, confirm('Merge with your existing readings? Cancel to replace them entirely.'));
-            toast('Backup imported.'); render();
+            var existing = S.store.allReadings().length;
+            var merge = existing > 0 &&
+              confirm('Merge with your existing readings? Cancel to replace them entirely.');
+            S.store.importAll(rd.result, merge);
+            S.store.markWelcomed();
+            state.view = 'journal';
+            toast('Backup imported — ' + S.store.readings().length + ' readings restored.');
+            render();
           } catch (err) { toast(err.message); }
         };
         rd.readAsText(f);
