@@ -14,27 +14,21 @@ Copy everything across from the working copy, skipping git metadata and the
 unused duplicate image folder. In PowerShell:
 
 ```powershell
-$src = "D:\Projects\active\sage"
-$dst = "D:\Projects\active\sagetarot.app-site"
-
-Get-ChildItem -LiteralPath $src -Force |
-  Where-Object { $_.Name -ne '.git' } |
-  ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $dst -Recurse -Force }
-
-Remove-Item -LiteralPath "$dst\images\rider_waite_tarot" -Recurse -Force -ErrorAction SilentlyContinue
+& "$env:SystemRoot\System32\Robocopy.exe" `
+  "D:\Projects\active\sage" "D:\Projects\active\sagetarot.app-site" `
+  /E /XD ".git" "rider_waite_tarot" "minimalist_custom_tarot"
 ```
+
+The excluded folders are work-in-progress card decks that stay on your machine.
+They are also listed in `.gitignore`, so they cannot be committed by accident
+even if a copy does bring them across.
 
 This overwrites but never deletes, so `CNAME`, `.nojekyll`, `.gitignore` and this
 file survive.
 
-`robocopy` does the same thing in one line, but it is not always on PATH — call
-it by full path if `robocopy` alone is not recognised:
-
-```powershell
-& "$env:SystemRoot\System32\Robocopy.exe" $src $dst /E /XD ".git" "rider_waite_tarot"
-```
-
-Note that robocopy exits with a non-zero code on success. That is normal.
+Robocopy exits with a non-zero code on success — that is normal, not an error.
+It overwrites but never deletes, so `CNAME`, `.nojekyll`, `.gitignore` and this
+file survive.
 
 Then:
 

@@ -15,3 +15,7 @@ Sage backup*.json
 # Distribution zips get rebuilt from the source; no need to publish them
 *.zip
 
+# Work-in-progress custom decks stay local and unpublished
+images/minimalist_custom_tarot/
+images/rider_waite_tarot/
+

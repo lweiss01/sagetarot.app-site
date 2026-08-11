@@ -80,11 +80,11 @@
   }
   function localUrl(file) { return 'images/' + file; }
 
+  /* The 78 images ship with the app, so they are always used first. Wikimedia
+     is only ever a per-image safety net if a local file is missing — it is not
+     a setting, because there is no longer a reason to choose it deliberately. */
   S.imgChain = function (card, width) {
-    var mode = S.store.settings().imageSource || 'local';
-    /* Local first, with Wikimedia as a per-image safety net. */
-    if (mode === 'local') return [localUrl(card.img), commonsUrl(card.img, width)];
-    return [commonsUrl(card.img, width)];
+    return [localUrl(card.img), commonsUrl(card.img, width)];
   };
 
   S.cardImgHTML = function (card, width, alt) {
@@ -1650,15 +1650,10 @@
       '</div></div>' +
 
       '<div class="panel"><h3>Card artwork</h3>' +
-        '<label class="field"><span class="lab">Image source</span>' +
-        '<select id="imgSource">' +
-          '<option value="local"' + (s.imageSource !== 'commons' ? ' selected' : '') + '>The images folder</option>' +
-          '<option value="commons"' + (s.imageSource === 'commons' ? ' selected' : '') + '>Wikimedia Commons</option>' +
-        '</select>' +
-        '<span class="hint">The 78 images ship with the app, so the folder needs no network at all. ' +
-        'Anything missing falls back to Wikimedia on its own.</span></label>' +
-        '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button>' +
-        '<button class="btn quiet sm" data-action="art-check">Check all 78</button></div>' +
+        '<p class="panel-lead">The 78 Rider–Waite images ship with the app, so nothing is fetched over the network. ' +
+        'If a file were ever missing, that one card falls back to Wikimedia on its own.</p>' +
+        '<div class="actions">' +
+        '<button class="btn ghost sm" data-action="art-check">Check all 78 images</button></div>' +
         '<div id="artCheck"></div>' +
       '</div>' +
 
@@ -2030,7 +2025,6 @@
 
       case 'save-settings': {
         var s = S.store.settings();
-        var src = document.getElementById('imgSource');
         var vo = document.getElementById('voice');
         var bd = document.getElementById('birthDate');
 
@@ -2046,7 +2040,6 @@
         var pr = document.getElementById('aiPrimary');
         if (pr) s.ai.primary = pr.value;
 
-        if (src) s.imageSource = src.value;
         if (vo) s.voice = vo.value;
         if (bd) {
           var val = bd.value.trim();
