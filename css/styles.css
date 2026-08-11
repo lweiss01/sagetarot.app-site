@@ -45,7 +45,12 @@ body{
   min-height:100vh;
   display:flex;flex-direction:column;   /* keeps the footer at the bottom of short pages */
 }
-main{flex:1 0 auto;}
+/* min-width:0 is the important part: without it this flex item will not shrink
+   below the intrinsic width of its widest child, so one over-wide element makes
+   the whole page wider than a phone screen and the gutters slide off to the
+   left. overflow-x:clip contains anything that still refuses to fit — clip
+   rather than hidden, so it creates no scroll container. */
+main{flex:1 0 auto;min-width:0;width:100%;max-width:100%;overflow-x:clip;}
 
 h1,h2,h3,h4{font-family:var(--serif);font-weight:500;letter-spacing:.01em;margin:0;line-height:1.2;}
 h1{font-size:2.4rem;}
@@ -55,7 +60,14 @@ p{margin:0 0 1em;}
 a{color:var(--gold-bright);text-decoration:none;}
 a:hover{text-decoration:underline;}
 
-.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--gutter);}
+/* The fallback in var() matters: if --gutter ever fails to resolve, the page
+   still gets breathing room instead of running to the screen edge. The
+   safe-area insets keep text clear of rounded corners on phones. */
+.wrap{
+  max-width:var(--maxw);margin:0 auto;
+  padding-left:max(var(--gutter,20px), env(safe-area-inset-left));
+  padding-right:max(var(--gutter,20px), env(safe-area-inset-right));
+}
 .hidden{display:none !important;}
 
 /* ---------------- header ---------------- */
@@ -1108,7 +1120,21 @@ body.guest-mode .brand .sub::after{
   .entry .fig{position:static;}   /* the header wraps at this width, so sticky would tuck under it */
 }
 @media (max-width:620px){
-  :root{--gutter:18px;}
+  :root{--gutter:20px;}
+
+  /* Nothing on a phone should be able to force the page wider than the screen. */
+  .band-cols{gap:26px;}
+  .band-lead h1{font-size:1.9rem;}
+  .band-strip{width:100%;}
+  .strip{flex-wrap:wrap;}
+  .sec-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .sec-tab{padding:11px 13px;font-size:.74rem;white-space:nowrap;}
+  .learn-toc a{font-size:.68rem;padding:6px 11px;}
+  .set-grid .panel,.panel{padding:20px 18px;}
+  .working code{font-size:.78rem;word-break:break-word;}
+  .stat-row{gap:22px;}
+  .guest-switch input{width:100%;}
+
   .entry{grid-template-columns:1fr;gap:18px;}
   .entry .fig{position:static;max-width:132px;}
   .journal-item{grid-template-columns:auto minmax(0,1fr);padding:16px 18px;gap:16px;}
