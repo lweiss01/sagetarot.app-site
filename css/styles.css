@@ -60,13 +60,19 @@ p{margin:0 0 1em;}
 a{color:var(--gold-bright);text-decoration:none;}
 a:hover{text-decoration:underline;}
 
-/* The fallback in var() matters: if --gutter ever fails to resolve, the page
-   still gets breathing room instead of running to the screen edge. The
-   safe-area insets keep text clear of rounded corners on phones. */
+/* Plain padding first, so it always applies. The safe-area version is layered
+   on only where max() and env() are both supported — written the other way
+   round, a browser that dislikes env() throws the whole declaration away and
+   the page ends up with no gutters at all. */
 .wrap{
   max-width:var(--maxw);margin:0 auto;
-  padding-left:max(var(--gutter,20px), env(safe-area-inset-left));
-  padding-right:max(var(--gutter,20px), env(safe-area-inset-right));
+  padding:0 var(--gutter,20px);
+}
+@supports (padding:max(0px,1px)){
+  .wrap{
+    padding-left:max(var(--gutter,20px), env(safe-area-inset-left));
+    padding-right:max(var(--gutter,20px), env(safe-area-inset-right));
+  }
 }
 .hidden{display:none !important;}
 
@@ -120,7 +126,10 @@ nav.main button.active{color:var(--ink);background:var(--gold);font-weight:600;}
 
 /* ---------------- generic bits ---------------- */
 
-.view{padding:52px 0 120px;animation:fade .35s ease;}
+/* Vertical only. A padding shorthand here would also set left and right to
+   zero, wiping out the gutters from .wrap on any element that carries both
+   classes — invisible above the max-width, edge-to-edge below it. */
+.view{padding-top:52px;padding-bottom:120px;animation:fade .35s ease;}
 @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 
 .page-head{margin-bottom:42px;border-bottom:1px solid var(--line);padding-bottom:26px;}
@@ -1113,7 +1122,7 @@ body.guest-mode .brand .sub::after{
   .topbar .wrap{height:auto;padding-top:12px;padding-bottom:12px;flex-wrap:wrap;gap:10px;}
   nav.main{margin-left:0;width:100%;}
   h1{font-size:2rem;}
-  .view{padding:38px 0 90px;}
+  .view{padding-top:38px;padding-bottom:90px;}
   .ornament{margin:44px 0;}
   .section-label{margin-top:44px;}
   .board-shell{padding:26px 18px;}
