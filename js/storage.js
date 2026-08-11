@@ -168,6 +168,7 @@
       }
 
       if (!s.voice) s.voice = 'plain';      // 'plain' | 'trad'
+      if (!s.deck) s.deck = 'rws';          // id from SAGE.DECKS
 
       /* AI keys used to be a single Anthropic key; they are per-provider now. */
       if (!s.ai) s.ai = {};

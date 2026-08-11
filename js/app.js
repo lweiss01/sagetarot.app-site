@@ -80,11 +80,15 @@
   }
   function localUrl(file) { return 'images/' + file; }
 
-  /* The 78 images ship with the app, so they are always used first. Wikimedia
-     is only ever a per-image safety net if a local file is missing — it is not
-     a setting, because there is no longer a reason to choose it deliberately. */
+  /* Selected deck first. If that deck is missing a card, fall back to
+     Rider–Waite rather than showing a hole, then to Wikimedia as a last
+     resort — so a partial deck degrades card by card instead of breaking. */
   S.imgChain = function (card, width) {
-    return [localUrl(card.img), commonsUrl(card.img, width)];
+    var d = S.deck();
+    var chain = [d.dir + d.file(card)];
+    if (d.id !== 'rws') chain.push('images/' + card.img);
+    chain.push(commonsUrl(card.img, width));
+    return chain;
   };
 
   S.cardImgHTML = function (card, width, alt) {
@@ -647,7 +651,8 @@
       h += '</div><div class="kw">';
       e.keywords.forEach(function (k) { h += '<span>' + esc(k) + '</span>'; });
       h += '</div>' +
-        '<div class="look-closer"><b>Look closer</b>' + esc(e.symbolism) + '</div>' +
+        '<div class="look-closer"><b>' + esc(symLabel('Look closer', card)) + '</b>' +
+          esc(symText(card)) + '</div>' +
         '<div style="margin-top:14px"><button class="btn quiet sm" data-action="open-card" data-id="' + card.id + '">Full card entry →</button></div>' +
         '</div></div>';
     });
@@ -747,6 +752,17 @@
   }
 
   /* Stored ratings stay 'landed' / 'partly' / 'missed' — only the wording changes. */
+  /* The symbolism notes were written about the Rider–Waite artwork. When
+     another deck is selected they are still worth reading — that vocabulary is
+     the common language of tarot — but the heading has to say so, or it reads
+     as a description of a picture that is not on screen. */
+  function symLabel(base, card) {
+    return S.symbolismMatchesDeck(card) ? base : base + ' — in the Rider–Waite deck';
+  }
+  function symText(card) {
+    return S.symbolismFor(card).text;
+  }
+
   var RATE_LABEL = { landed: 'Solid Reading', partly: 'Some Matches', missed: 'Missed the Mark' };
   var RATE_SHORT = { landed: 'Solid', partly: 'Partial', missed: 'Missed' };
 
@@ -1236,7 +1252,8 @@
           c.kwR.map(function (k) { return '<span>' + esc(k) + '</span>'; }).join('') + '</div>' +
           '<div class="prose"><p>' + esc(S.cardText(c, 'rev')) + '</p></div></div>' +
 
-        '<div class="look-closer" style="margin-bottom:26px"><b>In the picture</b>' + esc(c.sym) + '</div>' +
+        '<div class="look-closer" style="margin-bottom:26px"><b>' + esc(symLabel('In the picture', c)) + '</b>' +
+          esc(symText(c)) + '</div>' +
 
         '<div class="note-card"><h4>The turn</h4><p>' + esc(c.advice) + '</p></div>';
 
@@ -1389,7 +1406,8 @@
         (S.cardShort(q.card) ? '<p class="in-short"><b>In short</b>' + esc(S.cardShort(q.card)) + '</p>' : '') +
         '<div class="note-card"><h4>' + esc(q.card.name) + '</h4>' +
         '<p>' + esc(S.cardText(q.card, q.reversed ? 'rev' : 'up')) + '</p></div>' +
-        '<div class="look-closer"><b>Look closer</b>' + esc(q.card.sym) + '</div>' +
+        '<div class="look-closer"><b>' + esc(symLabel('Look closer', q.card)) + '</b>' +
+          esc(symText(q.card)) + '</div>' +
         '<div class="actions" style="margin-top:20px;justify-content:center">' +
         '<button class="btn" data-action="quiz-next">Next →</button></div></div>';
     }
@@ -1555,6 +1573,63 @@
 
   /* ================= view: settings ================= */
 
+  /* A handful of cards rendered by every registered deck, side by side, so the
+     styles can be judged against each other rather than one at a time. Picked
+     for range: a figure card, a busy scene, a simple one, and two scenic pips. */
+  var COMPARE_CARDS = ['fool', 'moon', 'tower', 'swords-03', 'pentacles-05', 'wands-08'];
+
+  function deckCompare() {
+    if (S.DECKS.length < 2) return '';
+    var live = S.deck();
+
+    var h = '<div class="deck-compare">';
+    S.DECKS.forEach(function (d) {
+      h += '<div class="dc-row' + (d.id === live.id ? ' on' : '') + '">' +
+        '<div class="dc-name">' + esc(d.name) +
+          (d.id === live.id ? '<span class="dc-live">in use</span>' : '') + '</div>' +
+        '<div class="dc-cards">';
+      COMPARE_CARDS.forEach(function (id) {
+        var c = S.cardById(id);
+        if (!c) return;
+        h += '<span class="dc-card" title="' + esc(c.name) + '">' + deckThumb(d, c) + '</span>';
+      });
+      h += '</div></div>';
+    });
+    return h + '</div>';
+  }
+
+  /* Render one card as a specific deck would, regardless of what is selected. */
+  function deckThumb(d, card) {
+    var src = d.dir + d.file(card);
+    var fallback = d.id === 'rws' ? '' : 'images/' + card.img;
+    return '<img src="' + esc(src) + '" alt="' + esc(card.name) + '" loading="lazy"' +
+      (fallback ? ' data-chain="' + esc(JSON.stringify([src, fallback])) + '" data-step="0" ' +
+        'data-card="' + esc(card.id) + '" onerror="SAGE.imgFail(this)"' : '') + '>';
+  }
+
+  /* The picker only appears once there is more than one deck to choose from. */
+  function deckField(s) {
+    var current = S.deck();
+
+    if (S.DECKS.length < 2) {
+      return '<p class="panel-lead">The 78 ' + esc(current.name) + ' images ship with the app, so nothing is ' +
+        'fetched over the network. If a file were ever missing, that one card falls back to Wikimedia on its own.</p>';
+    }
+
+    return deckCompare() +
+      '<label class="field"><span class="lab">Deck</span><select id="deckPick">' +
+      S.DECKS.map(function (d) {
+        return '<option value="' + d.id + '"' + (d.id === current.id ? ' selected' : '') + '>' +
+          esc(d.name) + '</option>';
+      }).join('') +
+      '</select><span class="hint">' + esc(current.sub) +
+      (current.scenic ? ''
+        : ' The numbered cards in this deck are suit symbols rather than scenes, so the “look closer” notes ' +
+          'describe the Rider–Waite pictures instead — they are labelled where that applies.') +
+      '</span></label>' +
+      '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button></div>';
+  }
+
   function providerFields(s) {
     var ai = s.ai || {};
     var configured = S.configuredProviders();
@@ -1659,9 +1734,7 @@
         (s.birthDate ? '<button class="btn quiet sm" data-action="clear-birth">Remove it</button>' : '') +
       '</div></div>' +
 
-      '<div class="panel"><h3>Card artwork</h3>' +
-        '<p class="panel-lead">The 78 Rider–Waite images ship with the app, so nothing is fetched over the network. ' +
-        'If a file were ever missing, that one card falls back to Wikimedia on its own.</p>' +
+      '<div class="panel"><h3>Card artwork</h3>' + deckField(s) +
         '<div class="actions">' +
         '<button class="btn ghost sm" data-action="art-check">Check all 78 images</button></div>' +
         '<div id="artCheck"></div>' +
@@ -1793,6 +1866,8 @@
   function artCheck() {
     var host = document.getElementById('artCheck');
     if (!host) return;
+
+
     host.innerHTML = '<p style="color:var(--muted);font-size:.86rem" id="artStatus">Loading 78 images…</p><div class="diag-grid" id="artGrid"></div>';
     var grid = document.getElementById('artGrid');
     var done = 0, failed = [];
@@ -2037,6 +2112,8 @@
         var s = S.store.settings();
         var vo = document.getElementById('voice');
         var bd = document.getElementById('birthDate');
+        var dk = document.getElementById('deckPick');
+        if (dk) s.deck = dk.value;
 
         s.ai = s.ai || {};
         S.PROVIDERS.forEach(function (p) {

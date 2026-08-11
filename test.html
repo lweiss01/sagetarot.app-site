@@ -34,6 +34,7 @@
 <script src="js/cards-plain3.js"></script>
 <script src="js/spreads.js"></script>
 <script src="js/topics.js"></script>
+<script src="js/decks.js"></script>
 <script src="js/yourcards.js"></script>
 <script src="js/learn.js"></script>
 <script src="js/engine.js"></script>
@@ -385,6 +386,42 @@
     });
     return T.notes.length + ' theme notes; top repeat: ' + T.recurring[0].card.name +
       ' ×' + T.recurring[0].readings.length;
+  });
+
+  t('Every registered deck can name a file for all 78 cards', function () {
+    assert(S.DECKS && S.DECKS.length >= 1, 'no decks registered');
+    var report = [];
+    S.DECKS.forEach(function (d) {
+      ['id','name','sub','dir'].forEach(function (k) {
+        assert(d[k], d.id + ' is missing ' + k);
+      });
+      assert(/\/$/.test(d.dir), d.id + ' dir needs a trailing slash: ' + d.dir);
+      assert(typeof d.file === 'function', d.id + ' has no file() function');
+
+      var seen = {};
+      S.CARDS.forEach(function (c) {
+        var f = d.file(c);
+        assert(f && typeof f === 'string', d.id + ' produced no filename for ' + c.id);
+        assert(f.indexOf('undefined') < 0, d.id + ' produced "' + f + '" for ' + c.id);
+        assert(!seen[f], d.id + ' gives two cards the same file: ' + f);
+        seen[f] = 1;
+      });
+      assert(Object.keys(seen).length === 78, d.id + ' produced ' + Object.keys(seen).length + ' filenames');
+      report.push(d.id);
+    });
+    return report.length + ' deck(s), all mapping 78 unique filenames: ' + report.join(', ');
+  });
+
+  t('Card sequence numbering runs 0–77 with no gaps', function () {
+    var seen = {};
+    S.CARDS.forEach(function (c) {
+      var n = S.cardSequence(c);
+      assert(n >= 0 && n <= 77, c.id + ' sequenced to ' + n);
+      assert(!seen[n], 'sequence ' + n + ' claimed twice');
+      seen[n] = c.id;
+    });
+    for (var i = 0; i <= 77; i++) assert(seen[i], 'nothing at sequence ' + i);
+    return 'majors 0–21, then wands, cups, swords, pentacles';
   });
 
   t('Every topic is complete', function () {
