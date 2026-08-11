@@ -1598,9 +1598,19 @@
     return h + '</div></div>';
   }
 
+  function supportPanel() {
+    return '<div class="panel"><h3>Support Sage</h3>' +
+      '<p class="panel-lead">Sage is free, has no ads and never will have. If it has been useful, ' +
+      'a coffee is a kind way to say so.</p>' +
+      '<div class="actions">' +
+      '<a class="btn bmc-btn" href="https://buymeacoffee.com/lweiss01" target="_blank" rel="noopener">' +
+      '<img src="icon/bmc-cup.svg" alt="" width="15" height="21">Buy me a coffee</a>' +
+      '</div></div>';
+  }
+
   function privacyPanel() {
     var on = S.consent ? S.consent.granted() : true;
-    return '<div class="panel wide"><h3>Privacy</h3>' +
+    return '<div class="panel"><h3>Privacy</h3>' +
       '<p class="panel-lead">Your readings, notes, birth date and API keys are saved on this device only. ' +
       'They are never uploaded, there is no account, and nobody else can see them — not even me. ' +
       'An exported backup is the only copy that ever leaves this browser, and only because you asked for it.</p>' +
@@ -1679,7 +1689,7 @@
         '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button></div>' +
       '</div>' +
 
-      privacyPanel() +
+      '<div class="pair-2-1">' + privacyPanel() + supportPanel() + '</div>' +
 
       '</div></div>';
   }

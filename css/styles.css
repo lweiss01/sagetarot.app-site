@@ -372,6 +372,18 @@ label.field .hint{display:block;font-size:.82rem;color:var(--muted);margin-top:6
 }
 .set-grid > .panel{display:flex;flex-direction:column;}
 .set-grid > .panel .actions{margin-top:auto;padding-top:8px;}
+
+/* A full-width row split two-thirds / one-third, for a pair whose content
+   is not evenly weighted — Privacy has a lot to say, Support very little. */
+.set-grid .pair-2-1{
+  grid-column:1/-1;
+  display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);
+  gap:18px;align-items:stretch;
+}
+.set-grid .pair-2-1 > .panel{display:flex;flex-direction:column;}
+.set-grid .pair-2-1 > .panel .actions{margin-top:auto;padding-top:8px;}
+.set-grid .pair-2-1 .panel-lead,.set-grid .pair-2-1 .hint{max-width:none;}
+@media (max-width:780px){ .set-grid .pair-2-1{grid-template-columns:1fr;} }
 /* The panels fill the page, but the controls inside stay a usable size rather
    than stretching to the full width of a wide panel. */
 .set-grid select,.set-grid input[type=date],.set-grid input[type=text],
@@ -1072,6 +1084,15 @@ body.guest-mode .brand .sub::after{
 .site-foot .sep{color:var(--gold-dim);}
 .site-foot a{color:var(--muted);text-decoration:none;transition:.15s;}
 .site-foot a:hover{color:var(--gold-bright);}
+/* Buy Me a Coffee — a plain link, so nothing third-party loads until it is
+   clicked. Their cup mark is used unmodified, per their brand guidelines. */
+.bmc-btn{
+  display:inline-flex;align-items:center;gap:9px;
+  background:#FFDD00;border-color:#FFDD00;color:#0D0C22;text-decoration:none;
+}
+.bmc-btn:hover{background:#FFE633;border-color:#FFE633;color:#0D0C22;text-decoration:none;}
+.bmc-btn img{display:block;}
+
 .site-foot .attrib{
   width:100%;font-size:.68rem;letter-spacing:.04em;color:#655f73;margin-top:2px;
 }
