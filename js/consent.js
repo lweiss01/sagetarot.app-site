@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — analytics consent.
  *
  * The default is set inline in index.html, because Google Consent Mode has to

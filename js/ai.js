@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — optional AI readings across several providers.
  *
  * Keys live in this browser and are sent only to the provider they belong to.

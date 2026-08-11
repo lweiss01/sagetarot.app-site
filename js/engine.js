@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — the reading engine.
  *
  * Composes a reading from cards x positions, elemental dignities, suit balance,

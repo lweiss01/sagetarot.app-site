@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — Minor Arcana, part two: Swords and Pentacles. Appended to SAGE.CARDS. */
 (function (S) {
   'use strict';

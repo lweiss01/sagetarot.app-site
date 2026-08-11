@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — persistence. localStorage, with JSON export/import as a backup path. */
 (function (S) {
   'use strict';

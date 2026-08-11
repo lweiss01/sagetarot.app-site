@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — birth cards, year cards and sun-sign cards.
  *
  * These are conventions from the Golden Dawn era and after, not mechanisms.

@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — Tarot card database
  * 78 cards, Rider–Waite–Smith. Public domain artwork (1909, Pamela Colman Smith).
  *

@@ -1,3 +1,8 @@
+/* Sage — https://sagetarot.app
+ * Copyright © 2026 Future Proof Works. All rights reserved.
+ * Not licensed for reuse or redistribution. See LICENSE.
+ */
+
 /* Sage — Spread definitions.
  * Each position: id, name, q (the question the position answers),
  *   lead (connective phrase the reading engine uses to open that paragraph),
