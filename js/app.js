@@ -31,6 +31,32 @@
     document.body.appendChild(t);
     setTimeout(function () { t.remove(); }, 2600);
   }
+  /* ---- analytics ----
+     Sage is a single page, so Google Analytics would otherwise record one
+     pageview per visit and nothing else. These send a virtual pageview when the
+     view changes, plus a handful of events for what actually gets used.
+     Nothing personal is sent: no questions, no notes, no card names, no dates. */
+
+  var lastTracked = null;
+
+  function track(name, params) {
+    if (typeof window.gtag !== 'function') return;
+    try { window.gtag('event', name, params || {}); } catch (e) {}
+  }
+
+  function trackView(view) {
+    if (view === lastTracked) return;
+    lastTracked = view;
+    if (typeof window.gtag !== 'function') return;
+    try {
+      window.gtag('event', 'page_view', {
+        page_title: 'Sage — ' + view,
+        page_path: '/' + view,
+        page_location: location.origin + location.pathname + '#' + view
+      });
+    } catch (e) {}
+  }
+
   function fmtDate(iso) {
     var d = new Date(iso);
     return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
@@ -189,9 +215,9 @@
 
         '<div class="welcome-points">' +
           '<div><b>Everything stays in this browser</b>' +
-          '<p>Your readings, notes and settings are saved on this device only. Nothing is sent anywhere and there ' +
-          'is no account. That also means clearing your browser data erases the lot — an exported backup is the ' +
-          'only copy that survives it.</p></div>' +
+          '<p>Your readings and notes are saved on this device only — never uploaded, and there is no account. ' +
+          'That also means clearing your browser data erases the lot, so an exported backup is the only copy that ' +
+          'survives it. Sage does send anonymous usage statistics, which you can switch off in Settings.</p></div>' +
 
           '<div><b>New to tarot?</b>' +
           '<p>The Learn section explains how the deck is put together, what the suits mean and what reversed ' +
@@ -1567,6 +1593,27 @@
     return h + '</div></div>';
   }
 
+  function privacyPanel() {
+    var on = S.consent ? S.consent.granted() : true;
+    return '<div class="panel wide"><h3>Privacy</h3>' +
+      '<p class="panel-lead">Your readings, notes, birth date and API keys are saved on this device only. ' +
+      'They are never uploaded, there is no account, and nobody else can see them — not even me. ' +
+      'An exported backup is the only copy that ever leaves this browser, and only because you asked for it.</p>' +
+      '<p class="panel-lead">Separately, Sage sends anonymous usage statistics to Google Analytics: which pages get ' +
+      'opened, which spreads get drawn, whether the AI features are used. Nothing you have written or drawn is ' +
+      'included — no questions, no notes, no card names, no dates. You can turn it off here and it stays off ' +
+      'on this device.</p>' +
+      '<div class="consent-state">' +
+        '<span class="dot' + (on ? ' on' : '') + '"></span>' +
+        '<span>Usage statistics are currently <b>' + (on ? 'on' : 'off') + '</b>.</span>' +
+        '<button class="btn ghost sm" data-action="toggle-consent">' +
+          (on ? 'Turn them off' : 'Turn them on') + '</button>' +
+      '</div>' +
+      '<p class="hint">The AI features are the one exception to all of the above: when you press “Deepen with AI”, ' +
+      'the cards and your question are sent to whichever provider you configured. That only happens when you press it.</p>' +
+      '</div>';
+  }
+
   function viewSettings() {
     var s = S.store.settings();
     var all = S.store.readings();
@@ -1632,6 +1679,8 @@
         '<div class="actions"><button class="btn ghost sm" data-action="save-settings">Save</button></div>' +
       '</div>' +
 
+      privacyPanel() +
+
       '</div></div>';
   }
 
@@ -1668,6 +1717,7 @@
     if (!primary) { toast('Add an API key in Settings first.'); go('settings'); return; }
     if (state.aiBusy) return;
 
+    track('ai_deepen', { provider: primary.id });
     state.aiBusy = true; render();
     S.askProvider(primary.id, readingToPrompt(rec))
       .then(function (run) {
@@ -1689,6 +1739,7 @@
     if (providers.length < 2) return aiDeepen(rec);
     if (state.aiBusy) return;
 
+    track('ai_council', { providers: providers.length });
     state.aiBusy = true; render();
     toast('Asking ' + providers.length + ' models…');
 
@@ -1789,6 +1840,11 @@
         document.getElementById('importFile').click(); break;
       case 'welcome-learn':
         S.store.markWelcomed(); go('learn'); break;
+      case 'toggle-consent':
+        if (S.consent) S.consent.set(!S.consent.granted());
+        toast(S.consent && S.consent.granted() ? 'Usage statistics on.' : 'Usage statistics off.');
+        render(); break;
+
       case 'dismiss-nudge':
         S.store.dismissNudge(); render(); break;
 
@@ -1878,6 +1934,14 @@
           rec.guestName = (state.guestName || '').trim();
         }
         S.store.saveReading(rec);
+        track('reading_saved', {
+          spread: rec.spreadId,
+          topic: rec.topic,
+          cards: draws.length,
+          reversed: draws.filter(function (x) { return x.reversed; }).length,
+          guest: !!rec.guest,
+          has_question: !!rec.question
+        });
         state.draft = null;
         state.openReadingId = rec.id;
         go('reading');
@@ -1905,6 +1969,7 @@
         rr.outcome.rating = el.getAttribute('data-id');
         rr.outcome.ratedAt = new Date().toISOString();
         S.store.saveReading(rr);
+        track('reading_rated', { rating: rr.outcome.rating, spread: rr.spreadId });
         render(); break;
       }
       case 'clear-outcome': {
@@ -1940,6 +2005,7 @@
         var qs = [];
         for (var i = 0; i < 10; i++) qs.push(makeQuestion());
         state.quiz = { questions: qs, index: 0, right: 0, total: 10, answered: false, chosen: -1 };
+        track('quiz_started');
         render(); break;
       }
       case 'quiz-answer': {
@@ -2129,6 +2195,7 @@
       app.innerHTML = viewWelcome();
       syncNav();
       afterRender();
+      trackView('welcome');
       return;
     }
 
@@ -2150,6 +2217,7 @@
     app.innerHTML = html;
     syncNav();
     afterRender();
+    trackView(state.view);
   }
 
   function afterRender() {

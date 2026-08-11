@@ -35,6 +35,10 @@ What does **not** travel with the folder: your readings, your notes, your birth
 date and your API keys all live in your browser's local storage, not in these
 files. Whoever you send it to gets a clean, empty copy.
 
+Note that `index.html` carries a Google Analytics tag pointed at the hosted site.
+If you are handing out copies to run locally, either strip that block or accept
+that those visits will land in the same statistics.
+
 Four things worth telling them:
 
 - **It works with no internet.** The card images ship in `images/`, so nothing is
@@ -207,14 +211,33 @@ Costs a few cents per call. Everything else works without any of it.
 
 ---
 
-## Your data
+## Your data and privacy
 
-Readings, notes and study progress live in this browser's local storage. They
-survive closing the app but not clearing site data.
+Readings, notes, birth date and API keys live in this browser's local storage.
+They are never uploaded, there is no account, and no server holds a copy — the
+site is static files on GitHub Pages with no back end at all. They survive
+closing the app but not clearing site data.
 
-**Settings → Export backup** writes a `.json` file with everything (minus the API
-key). Import restores it, with the option to merge or replace. Worth doing
-occasionally.
+**Settings → Export backup** writes a `.json` file with everything except the API
+keys, which are deliberately stripped. Import restores it, merging or replacing.
+Sage nudges you if you have ten or more readings and haven't exported in thirty
+days.
+
+Two things do leave the browser, both of them narrow:
+
+**Anonymous usage statistics** go to Google Analytics — which views get opened,
+which spreads get drawn, whether the AI features get used, how quizzes are
+started. No questions, notes, card names or dates are ever sent. Visitors in
+Europe and the UK are asked before any cookie is set, using Google Consent Mode
+so nothing is stored until they answer; everyone else can switch it off in
+**Settings → Privacy**, and the choice is remembered per device.
+
+**AI readings**, when you press "Deepen with AI" or "Convene the council". That
+sends the spread and your question to whichever provider you configured, and only
+at the moment you press it.
+
+Everything else — the readings themselves, the 78 card meanings, the interpretation
+engine, the themes analysis, the study rounds — runs entirely on your machine.
 
 ---
 
@@ -248,6 +271,7 @@ js/yourcards.js       birth, year and sun-sign card arithmetic
 js/learn.js           the Learn page content
 js/engine.js          reading composition and cross-reading themes
 js/storage.js         local storage, export and import
+js/consent.js         analytics consent banner and preference
 js/ai.js              provider calls and the council
 js/app.js             views and interaction
 images/               drop your own card scans here (optional)

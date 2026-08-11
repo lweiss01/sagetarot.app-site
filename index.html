@@ -19,6 +19,43 @@
 
 <script src="js/theme-toggle.js"></script>
 
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QJTK3L4T0X"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+
+  /* Consent has to be declared before config runs, so this is inline rather
+     than in consent.js. Visitors whose timezone looks European start denied
+     until they choose; everyone else starts granted. An explicit stored
+     choice always wins, wherever they are. */
+  (function () {
+    var eu = true;                    // if the timezone cannot be read, assume it applies
+    try {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      eu = /^Europe\//.test(tz) || /^Atlantic\/(Canary|Azores|Madeira|Reykjavik|Faroe)/.test(tz);
+    } catch (e) {}
+
+    var stored = null;
+    try { stored = localStorage.getItem('sage.consent'); } catch (e) {}
+
+    var granted = stored ? (stored === 'granted') : !eu;
+    window.SAGE_CONSENT = { eu: eu, stored: stored, granted: granted };
+
+    gtag('consent', 'default', {
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      analytics_storage: granted ? 'granted' : 'denied',
+      wait_for_update: 500
+    });
+  })();
+
+  gtag('js', new Date());
+  gtag('config', 'G-QJTK3L4T0X');
+</script>
+<script src="js/consent.js" defer></script>
+
 </head>
 <body>
 
