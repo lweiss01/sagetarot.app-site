@@ -47,17 +47,26 @@
     var granted = stored ? (stored === 'granted') : !eu;
     window.SAGE_CONSENT = { eu: eu, stored: stored, granted: granted };
 
+    /* No wait_for_update: that is for sites whose consent arrives later from a
+       separate cookie banner script. Ours is decided synchronously right here,
+       so waiting only delays the first hit and risks losing it. */
     gtag('consent', 'default', {
       ad_storage: 'denied',
       ad_user_data: 'denied',
       ad_personalization: 'denied',
-      analytics_storage: granted ? 'granted' : 'denied',
-      wait_for_update: 500
+      analytics_storage: granted ? 'granted' : 'denied'
     });
   })();
 
   gtag('js', new Date());
-  gtag('config', 'G-FTYHWRG9RH');
+
+  /* Visit sagetarot.app/?ga_debug=1 to make this session show up in
+     Analytics → Admin → DebugView, which reports within seconds instead of
+     the delay on the normal reports. Debug hits are kept out of the ordinary
+     reports, so this is safe to leave in. */
+  gtag('config', 'G-FTYHWRG9RH', {
+    debug_mode: /[?&]ga_debug=1/.test(location.search)
+  });
 </script>
 <script src="js/consent.js" defer></script>
 
