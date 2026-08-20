@@ -8,7 +8,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sage — a tarot reading journal</title>
+
+<title>Sage — Tarot Journal: record readings from your own deck</title>
+<meta name="description" content="A free tarot journal for readings you do yourself. Record the cards you pull from your own deck across seven spreads, get a detailed interpretation, keep every reading, and see the patterns that emerge over time. Works offline, nothing uploaded.">
+<link rel="canonical" href="https://sagetarot.app/">
+<meta name="author" content="Future Proof Works">
+<meta name="robots" content="index, follow, max-image-preview:large">
+
+<!-- link previews -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sage">
+<meta property="og:url" content="https://sagetarot.app/">
+<meta property="og:title" content="Sage — a tarot journal for readings you do yourself">
+<meta property="og:description" content="Record the cards you pull from your own deck, get a detailed reading, and watch the themes that keep returning across your journal. Free, private, works offline.">
+<meta property="og:image" content="https://sagetarot.app/images/RWS_Tarot_17_Star.jpg">
+<meta property="og:image:alt" content="The Star, from the Rider–Waite–Smith tarot deck">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sage — a tarot journal for readings you do yourself">
+<meta name="twitter:description" content="Record the cards you pull from your own deck, get a detailed reading, and watch the themes that keep returning across your journal.">
+<meta name="twitter:image" content="https://sagetarot.app/images/RWS_Tarot_17_Star.jpg">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Sage",
+  "alternateName": "Sage Tarot Journal",
+  "url": "https://sagetarot.app/",
+  "applicationCategory": "LifestyleApplication",
+  "operatingSystem": "Any modern web browser",
+  "browserRequirements": "Requires JavaScript",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Organization", "name": "Future Proof Works", "url": "https://futureproofworks.com" },
+  "description": "A tarot journal for readings you do yourself. Record the cards you pull from your own physical deck across seven spreads, receive a detailed interpretation, keep every reading, and see recurring themes across them over time.",
+  "featureList": [
+    "Seven spreads including the Celtic Cross, Horseshoe and Relationship spreads",
+    "Detailed readings written from the cards and their positions",
+    "All 78 Rider-Waite-Smith card meanings, upright and reversed",
+    "A journal of saved readings with notes and outcome ratings",
+    "Recurring themes found across multiple readings",
+    "Flashcard study rounds weighted to the cards you actually draw"
+  ],
+  "isAccessibleForFree": true
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -92,7 +135,60 @@
   </div>
 </header>
 
-<main id="app"></main>
+<!--
+  The app replaces everything inside #app on its first render, so nobody with
+  JavaScript ever sees this. It exists so that crawlers, link previews and
+  anyone with JavaScript disabled get a real page rather than an empty div.
+-->
+<main id="app">
+  <div class="wrap view boot-copy">
+    <div class="page-head">
+      <div class="eyebrow">Tarot Journal</div>
+      <h1>A tarot journal for readings you do yourself</h1>
+      <p class="lede">Sage has no deck to shuffle. You pull the cards from your own,
+      record what came out, and it writes the reading and keeps it.</p>
+    </div>
+
+    <div class="prose">
+      <p>Choose one of seven spreads, place the cards you actually drew, and mark any that
+      came out reversed. Sage writes a detailed interpretation from those exact cards in
+      those exact positions — not a list of card meanings, but a reading that accounts for
+      how the cards interact, which suit dominates, how much of the Major Arcana is on the
+      table, and where the reversals fall.</p>
+
+      <p>Every reading is saved. Come back later, add a note about what actually happened,
+      and rate whether it landed. Once you have a few, Sage shows you what you cannot see
+      from inside a single spread: the cards that keep returning, the suit your life is
+      currently being decided in, and which cards you read well against the ones that
+      consistently catch you out.</p>
+    </div>
+
+    <p class="section-label">The spreads</p>
+    <div class="prose">
+      <p>Single Card for daily practice. Past &middot; Present &middot; Future. The Celtic Cross
+      as a full ten-card diagnostic. The Horseshoe. The Relationship spread, read from both
+      sides. The Crossroads and Two Paths for decisions, showing what each option offers and
+      what it costs.</p>
+    </div>
+
+    <p class="section-label">The deck and the meanings</p>
+    <div class="prose">
+      <p>All 78 Rider&ndash;Waite&ndash;Smith cards, with upright and reversed meanings written
+      in plain English, what to look for in each picture, the element and the astrological
+      attribution. There is a Learn section covering how the deck is put together, what the
+      four suits mean, and what reversed actually means &mdash; which is not &ldquo;the
+      opposite&rdquo;. Study rounds quiz you on the cards you have actually pulled.</p>
+
+      <p>Sage is free and has no ads. Your readings are stored in your own browser, never
+      uploaded, and there is no account to create. It works offline.</p>
+    </div>
+
+    <noscript>
+      <p class="prose"><strong>Sage needs JavaScript to run.</strong> Everything happens in
+      your browser — there is no server doing the work — so please enable it and reload.</p>
+    </noscript>
+  </div>
+</main>
 
 <footer class="site-foot">
   <div class="wrap">

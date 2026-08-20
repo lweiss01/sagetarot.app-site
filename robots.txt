@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Working files that are of no use in search results
+Disallow: /test.html
+Disallow: /tools/
+Disallow: /DEPLOY.md
+
+Sitemap: https://sagetarot.app/sitemap.xml
