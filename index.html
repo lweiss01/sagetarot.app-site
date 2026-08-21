@@ -58,10 +58,15 @@
 <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/theme.css">
 
-<link rel="icon" href="icon/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="icon/favicon-32.png" sizes="32x32">
-<link rel="icon" href="icon/favicon-16.png" sizes="16x16">
-<link rel="apple-touch-icon" href="icon/apple-touch-icon-180.png">
+<!-- Google looks for /favicon.ico at the root regardless of what is declared
+     here, and only uses icons that are square and a multiple of 48px — so the
+     192 is the one it will pick. The rest are for browsers and devices. -->
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/icon/icon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="/icon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/icon/favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="/icon/apple-touch-icon-180.png">
 <meta name="theme-color" content="#F3F1EA" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#171A28" media="(prefers-color-scheme: dark)">
 
