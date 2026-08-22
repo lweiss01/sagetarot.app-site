@@ -126,13 +126,94 @@
 
   /* ================= navigation ================= */
 
+  /* ---- routing ----
+     Hash URLs rather than paths, so GitHub Pages needs no configuration: every
+     view is bookmarkable, and the browser's own back and forward buttons work
+     instead of being a way to leave the site by accident. */
+
+  function cardSlug(card) {
+    return card.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+  function cardBySlug(s) {
+    for (var i = 0; i < S.CARDS.length; i++) if (cardSlug(S.CARDS[i]) === s) return S.CARDS[i];
+    return null;
+  }
+
+  function hashFor() {
+    switch (state.view) {
+      case 'journal':  return '#/journal';
+      case 'themes':   return '#/journal/themes';
+      case 'guests':   return '#/journal/guests';
+      case 'library':  return '#/deck/library';
+      case 'mine':     return '#/deck/mine';
+      case 'yours':    return '#/deck/birth';
+      case 'study':    return '#/learn/study';
+      case 'learn':    return '#/learn/about';
+      case 'settings': return '#/settings';
+      case 'card': {
+        var c = S.cardById(state.openCardId);
+        return c ? '#/card/' + cardSlug(c) : '#/deck/library';
+      }
+      case 'reading':
+        return state.openReadingId ? '#/reading/' + state.openReadingId : '#/journal';
+      default: return '#/read';
+    }
+  }
+
+  function applyHash() {
+    var parts = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean);
+    var a = parts[0] || '', b = parts[1] || '';
+
+    if (a === 'journal') {
+      if (state.guest) { state.view = 'guests'; return; }
+      state.view = b === 'themes' ? 'themes' : (b === 'guests' ? 'guests' : 'journal');
+      return;
+    }
+    if (a === 'deck') {
+      state.view = b === 'mine' ? 'mine' : (b === 'birth' ? 'yours' : 'library');
+      return;
+    }
+    if (a === 'learn')    { state.view = b === 'about' ? 'learn' : 'study'; return; }
+    if (a === 'settings') { state.view = 'settings'; return; }
+
+    if (a === 'card') {
+      var c = cardBySlug(b);
+      if (c) { state.openCardId = c.id; state.view = 'card'; }
+      else state.view = 'library';
+      return;
+    }
+    if (a === 'reading') {
+      if (b && S.store.reading(b)) { state.openReadingId = b; state.view = 'reading'; }
+      else state.view = 'journal';
+      return;
+    }
+    state.view = 'draw';
+  }
+
+  /* Set while we are the ones changing the hash, so our own write does not come
+     back round as though the visitor had pressed back. */
+  var ownHashChange = false;
+
   function go(view, opts) {
     state.view = view;
     if (opts && opts.readingId) state.openReadingId = opts.readingId;
     if (opts && opts.cardId) state.openCardId = opts.cardId;
+
+    var h = hashFor();
+    if (location.hash !== h) {
+      ownHashChange = true;
+      location.hash = h;
+    }
     window.scrollTo(0, 0);
     render();
   }
+
+  window.addEventListener('hashchange', function () {
+    if (ownHashChange) { ownHashChange = false; return; }
+    applyHash();
+    window.scrollTo(0, 0);
+    render();
+  });
 
   document.querySelector('.topbar').addEventListener('click', function (e) {
     var b = e.target.closest('[data-nav]');
@@ -1274,6 +1355,28 @@
       h += '</div>';
     }
 
+    /* previous and next through the deck, in the order the cards are held:
+       majors, then wands, cups, swords, pentacles */
+    var idx = -1;
+    for (var n = 0; n < S.CARDS.length; n++) if (S.CARDS[n].id === c.id) { idx = n; break; }
+    var prev = idx > 0 ? S.CARDS[idx - 1] : null;
+    var next = idx >= 0 && idx < S.CARDS.length - 1 ? S.CARDS[idx + 1] : null;
+
+    h += '<nav class="card-prevnext">' +
+      (prev ? '<a href="#/card/' + cardSlug(prev) + '" data-action="open-card" data-id="' + prev.id + '">← ' +
+        esc(prev.name) + '</a>' : '<span></span>') +
+      (next ? '<a href="#/card/' + cardSlug(next) + '" data-action="open-card" data-id="' + next.id + '">' +
+        esc(next.name) + ' →</a>' : '<span></span>') +
+      '</nav>';
+
+    /* Copies rather than navigates — following it would eject you out of the
+       app into the static page, which is only there for people arriving from
+       a search engine. */
+    h += '<p class="share-card">' +
+      '<button class="btn quiet sm" data-action="copy-card-link" data-slug="' + cardSlug(c) + '">' +
+      'Copy a link to this card</button>' +
+      '<span>Opens as a plain page for anyone, no app needed.</span></p>';
+
     h += '</div></div></div>';
     return h;
   }
@@ -2033,8 +2136,12 @@
         break;
       }
 
-      case 'open-reading': state.openReadingId = el.getAttribute('data-id'); go('reading'); break;
-      case 'open-card': state.openCardId = el.getAttribute('data-id'); go('card'); break;
+      case 'open-reading':
+        e.preventDefault();
+        state.openReadingId = el.getAttribute('data-id'); go('reading'); break;
+      case 'open-card':
+        e.preventDefault();          /* prev/next are real links, for middle-click and copy */
+        state.openCardId = el.getAttribute('data-id'); go('card'); break;
       case 'goto-library': go('library'); break;
       case 'goto-draw': state.draft = null; go('draw'); break;
 
@@ -2142,6 +2249,18 @@
         s2.birthDate = '';
         S.store.saveSettings(s2);
         toast('Birth date removed.'); render(); break;
+      }
+
+      case 'copy-card-link': {
+        var link = location.origin + '/cards/' + el.getAttribute('data-slug') + '.html';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link)
+            .then(function () { toast('Link copied.'); })
+            .catch(function () { toast(link); });
+        } else {
+          toast(link);
+        }
+        break;
       }
 
       case 'goto-settings': go('settings'); break;
@@ -2360,6 +2479,19 @@
 
   var fy = document.getElementById('footYear');
   if (fy) fy.textContent = String(new Date().getFullYear());
+
+  /* A card page under /cards/ declares which card it is, so a visitor arriving
+     from a search result lands inside the app looking at that card rather than
+     on a separate page with a button. The URL is rewritten to the canonical
+     in-app one straight away, so everything after this behaves normally. */
+  if (window.SAGE_ROUTE) {
+    var r0 = window.SAGE_ROUTE;
+    if (r0.cardId && S.cardById(r0.cardId)) { state.openCardId = r0.cardId; state.view = 'card'; }
+    else if (r0.view) { state.view = r0.view; }
+    try { history.replaceState({}, '', '/' + hashFor()); } catch (e) {}
+  } else {
+    applyHash();        /* honour a bookmarked or shared URL before first paint */
+  }
 
   render();
 

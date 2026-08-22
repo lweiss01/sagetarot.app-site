@@ -3,48 +3,87 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>Knight of Swords — tarot card meaning, upright and reversed | Sage</title>
-<meta name="description" content="Straight at it, fast, and say the thing. This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term.">
+<meta name="description" content="Straight at it, fast, and say the thing. This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term. As advice: stop deliberating and move, and accept that some damage is the price of that speed.">
 <link rel="canonical" href="https://sagetarot.app/cards/knight-of-swords.html">
 <meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="Future Proof Works">
+
 <meta property="og:type" content="article">
-<meta property="og:title" content="Knight of Swords — tarot card meaning">
-<meta property="og:description" content="Straight at it, fast, and say the thing. This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term.">
+<meta property="og:site_name" content="Sage">
 <meta property="og:url" content="https://sagetarot.app/cards/knight-of-swords.html">
+<meta property="og:title" content="Knight of Swords — tarot card meaning, upright and reversed | Sage">
+<meta property="og:description" content="Straight at it, fast, and say the thing. This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term. As advice: stop deliberating and move, and accept that some damage is the price of that speed.">
 <meta property="og:image" content="https://sagetarot.app/images/Swords12.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/favicon.ico" sizes="any">
+<meta name="twitter:title" content="Knight of Swords — tarot card meaning, upright and reversed | Sage">
+<meta name="twitter:description" content="Straight at it, fast, and say the thing. This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term. As advice: stop deliberating and move, and accept that some damage is the price of that speed.">
+<meta name="twitter:image" content="https://sagetarot.app/images/Swords12.jpg">
+
 <link rel="stylesheet" href="../css/styles.css">
 <link rel="stylesheet" href="../css/theme.css">
+
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/icon/icon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="/icon/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon/apple-touch-icon-180.png">
+<meta name="theme-color" content="#F3F1EA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171A28" media="(prefers-color-scheme: dark)">
+
 <script src="../js/theme-toggle.js"></script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FTYHWRG9RH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  (function(){
+    var eu = true;
+    try {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      eu = /^Europe\//.test(tz) || /^Atlantic\/(Canary|Azores|Madeira|Reykjavik|Faroe)/.test(tz);
+    } catch (e) {}
+    var stored = null;
+    try { stored = localStorage.getItem('sage.consent'); } catch (e) {}
+    var granted = stored ? (stored === 'granted') : !eu;
+    window.SAGE_CONSENT = { eu: eu, stored: stored, granted: granted };
+    gtag('consent','default',{ ad_storage:'denied', ad_user_data:'denied',
+      ad_personalization:'denied', analytics_storage: granted ? 'granted' : 'denied' });
+  })();
+  gtag('js', new Date());
+  gtag('config', 'G-FTYHWRG9RH', { debug_mode: /[?&]ga_debug=1/.test(location.search) });
+</script>
+<script src="../js/consent.js" defer></script>
 <script type="application/ld+json">
-{
-  "@context":"https://schema.org",
-  "@type":"BreadcrumbList",
-  "itemListElement":[
-    {"@type":"ListItem","position":1,"name":"Sage","item":"https://sagetarot.app/"},
-    {"@type":"ListItem","position":2,"name":"Card meanings","item":"https://sagetarot.app/cards/"},
-    {"@type":"ListItem","position":3,"name":"Knight of Swords"}
-  ]
-}
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+ {"@type":"ListItem","position":1,"name":"Sage","item":"https://sagetarot.app/"},
+ {"@type":"ListItem","position":2,"name":"Card meanings","item":"https://sagetarot.app/cards/"},
+ {"@type":"ListItem","position":3,"name":"Knight of Swords"}]}
 </script>
 </head>
 <body>
-
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="/"><span class="mark">Sage</span><span class="sub">Tarot Journal</span></a>
-    <nav class="main"><a class="card-nav-link" href="/cards/">All 78 cards</a>
-    <a class="card-nav-link" href="/">Open the app</a></nav>
+    <a class="brand" href="/" data-nav="draw">
+      <span class="mark">Sage</span><span class="sub">Tarot Journal</span>
+    </a>
+    <nav class="main" id="nav">
+      <button data-nav="draw">Read</button>
+      <button data-nav="journal">Journal</button>
+      <button data-nav="library">Deck</button>
+      <button data-nav="study">Learn</button>
+    </nav>
+    <div class="top-right" id="topRight">
+      <span class="streak-chip" id="streakChip"></span>
+      <button class="top-settings" data-nav="settings">Settings</button>
+    </div>
   </div>
 </header>
-
-<main class="wrap view doc">
-  <p style="margin:0 0 18px"><a href="/cards/" style="font-size:.82rem;color:var(--muted)">← Card meanings</a></p>
-
+<main id="app">
+<div class="wrap view doc">
   <div class="detail">
     <div>
-      <div class="art"><img src="../images/Swords12.jpg" alt="Knight of Swords from the Rider–Waite–Smith tarot deck" width="350" height="600"></div>
+      <div class="art"><img src="/images/Swords12.jpg" alt="Knight of Swords from the Rider–Waite–Smith tarot deck"></div>
       <table class="meta-table"><tbody>
         <tr><td>Arcana</td><td>Minor</td></tr>
         <tr><td>Suit</td><td>Swords</td></tr>
@@ -52,48 +91,48 @@
         <tr><td>Attribution</td><td>Air of Air</td></tr>
       </tbody></table>
     </div>
-
     <div>
       <div class="eyebrow" style="font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:10px">Knight of Swords</div>
       <h1 style="margin-bottom:14px">Knight of Swords</h1>
       <p class="in-short big"><b>In short</b>Straight at it, fast, and say the thing.</p>
 
-      <div class="mean-block">
-        <h4>Upright</h4>
+      <div class="mean-block"><h4>Upright</h4>
         <div class="kw" style="margin-bottom:12px"><span>decisive action</span><span>directness</span><span>intellectual charge</span><span>fast pursuit</span><span>ambition</span></div>
-        <div class="prose"><p>This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term. As advice: stop deliberating and move, and accept that some damage is the price of that speed.</p></div>
-      </div>
+        <div class="prose"><p>This is pure directed thinking and nerve — the person who says it, makes the call, and does not wait for everyone to agree. Enormously effective in the short term. As advice: stop deliberating and move, and accept that some damage is the price of that speed.</p></div></div>
 
-      <div class="mean-block rev">
-        <h4>Reversed</h4>
+      <div class="mean-block rev"><h4>Reversed</h4>
         <div class="kw" style="margin-bottom:12px"><span>aggression</span><span>haste</span><span>bulldozing</span><span>argument for its own sake</span></div>
-        <div class="prose"><p>Speed becomes damage. Words that cannot be unsaid, a decision made too fast to be right, arguments pursued for the pleasure of arguing. He arrives, wins, and leaves someone else to clear up.</p></div>
-      </div>
+        <div class="prose"><p>Speed becomes damage. Words that cannot be unsaid, a decision made too fast to be right, arguments pursued for the pleasure of arguing. He arrives, wins, and leaves someone else to clear up.</p></div></div>
 
       <div class="look-closer" style="margin-bottom:26px"><b>In the picture</b>He charges full tilt, sword forward, cloak and plume streaming; the horse's eyes are wide. The trees bend hard and clouds race — the whole image is wind. He is the fastest thing in the deck and there is nothing ahead of him.</div>
-
       <div class="note-card"><h4>The turn</h4><p>Move now, but write the message and reread it before sending.</p></div>
-
-      <div class="panel" style="margin-top:34px">
-        <h3 style="margin-bottom:8px">Reading with your own deck?</h3>
-        <p class="panel-lead">Sage records the cards you actually pull, writes the reading, keeps every one,
-        and shows you what keeps returning across them. Free, private, no account.</p>
-        <div class="actions"><a class="btn" href="/">Open Sage</a></div>
-      </div>
-
-      <nav class="card-prevnext">
-        <a href="page-of-swords.html">← Page of Swords</a>
-        <a href="queen-of-swords.html">Queen of Swords →</a>
-      </nav>
     </div>
   </div>
+</div>
 </main>
-
-<footer class="site-foot"><div class="wrap">
-  <span>&copy; 2026 Future Proof Works</span><span class="sep">//</span>
-  <a href="https://futureproofworks.com" target="_blank" rel="noopener">FutureProofWorks.com</a>
-  <span class="attrib">Artwork: Rider&ndash;Waite&ndash;Smith, Pamela Colman Smith, 1909 &mdash; public domain.</span>
-</div></footer>
-
+<footer class="site-foot">
+  <div class="wrap">
+    <span>&copy; <span id="footYear">2026</span> Future Proof Works</span>
+    <span class="sep">//</span>
+    <a href="https://futureproofworks.com" target="_blank" rel="noopener">FutureProofWorks.com</a>
+    <span class="attrib">Artwork: Rider&ndash;Waite&ndash;Smith, Pamela Colman Smith, 1909 &mdash; public domain.</span>
+  </div>
+</footer>
+<script>window.SAGE_ROUTE = { view:'card', cardId:'swords-12' };</script>
+<script src="../js/cards.js"></script>
+<script src="../js/cards-minor.js"></script>
+<script src="../js/cards-minor2.js"></script>
+<script src="../js/cards-plain.js"></script>
+<script src="../js/cards-plain2.js"></script>
+<script src="../js/cards-plain3.js"></script>
+<script src="../js/spreads.js"></script>
+<script src="../js/topics.js"></script>
+<script src="../js/decks.js"></script>
+<script src="../js/yourcards.js"></script>
+<script src="../js/learn.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/storage.js"></script>
+<script src="../js/ai.js"></script>
+<script src="../js/app.js"></script>
 </body>
 </html>

@@ -45,7 +45,8 @@
       id: 'rws',
       name: 'Rider–Waite–Smith',
       sub: 'The 1909 classic, illustrated by Pamela Colman Smith. Public domain.',
-      dir: 'images/',
+      /* Absolute, so it resolves the same from / and from /cards/the-tower.html */
+      dir: '/images/',
       scenic: true,
       faithful: true,
       file: function (card) { return card.img; }

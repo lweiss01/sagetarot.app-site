@@ -1059,7 +1059,9 @@ body.guest-mode .brand .sub::after{
 
 .detail{display:grid;grid-template-columns:260px minmax(0,1fr);gap:44px;align-items:start;max-width:1020px;}
 .detail .art{border-radius:10px;overflow:hidden;border:1px solid var(--line-strong);box-shadow:0 16px 44px rgba(0,0,0,.55);}
-.detail .art img{width:100%;display:block;}
+/* height:auto matters — without it, a width/height attribute pair on the img
+   fights the CSS width and the card comes out squeezed tall and narrow. */
+.detail .art img{width:100%;height:auto;display:block;}
 .meta-table{width:100%;border-collapse:collapse;margin:18px 0 0;font-size:.86rem;}
 .meta-table td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:top;}
 .meta-table td:first-child{color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-size:.66rem;width:44%;}
@@ -1115,6 +1117,13 @@ body.guest-mode .brand .sub::after{
 /* the index grid uses <a> rather than <button>, so it needs the same treatment */
 a.lib-card{display:block;text-decoration:none;color:inherit;}
 a.lib-card:hover{text-decoration:none;}
+
+.share-card{
+  margin:18px 0 0;font-size:.84rem;color:var(--muted);
+  display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;
+}
+.share-card a{color:var(--gold-bright);text-decoration:none;}
+.share-card a:hover{text-decoration:underline;text-underline-offset:3px;}
 
 /* ---------------- footer ---------------- */
 
