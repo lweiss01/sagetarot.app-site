@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<!--
+  Sage — https://sagetarot.app
+  Copyright © 2026 Future Proof Works. All rights reserved.
+
+  Builds one static, indexable page per card from the card data the app already
+  uses, so the writing stops being invisible to search engines. Also writes an
+  index page and a fresh sitemap.
+
+  Open this file in Chrome or Edge, press the button, and choose the folder to
+  write into. It uses the File System Access API, so nothing is installed and
+  nothing is uploaded — the files are written straight to disk.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sage — build card pages</title>
+<style>
+  body{font-family:ui-sans-serif,system-ui,sans-serif;max-width:760px;margin:40px auto;
+       padding:0 24px;background:#11141f;color:#ece6da;line-height:1.6;}
+  h1{font-weight:500;}
+  code{background:#1e2334;padding:2px 6px;border-radius:3px;font-size:.9em;}
+  button{background:#c6a768;color:#1a1508;border:none;padding:13px 24px;border-radius:5px;
+         font-size:.95rem;font-weight:600;cursor:pointer;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  #log{margin-top:24px;font-family:ui-monospace,monospace;font-size:.82rem;color:#8d879a;
+       max-height:340px;overflow:auto;border:1px solid rgba(198,167,104,.2);padding:14px;border-radius:5px;}
+  .ok{color:#7fa87f;} .bad{color:#c07a80;}
+</style>
+</head>
+<body>
+
+<h1>Build card pages</h1>
+<p>Writes <code>cards/index.html</code> plus one page per card, and a replacement
+<code>sitemap.xml</code>. Pick your <strong>site root</strong> when prompted — the folder
+holding <code>index.html</code>.</p>
+
+<button id="go">Choose folder and build</button>
+<div id="log"></div>
+
+<script src="../js/cards.js"></script>
+<script src="../js/cards-minor.js"></script>
+<script src="../js/cards-minor2.js"></script>
+<script src="../js/cards-plain.js"></script>
+<script src="../js/cards-plain2.js"></script>
+<script src="../js/cards-plain3.js"></script>
+
+<script>
+const S = window.SAGE;
+const SITE = 'https://sagetarot.app';
+const logEl = document.getElementById('log');
+
+function log(msg, cls) {
+  logEl.innerHTML += '<div class="' + (cls || '') + '">' + msg + '</div>';
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function slug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+}
+const RANK = {1:'Ace',11:'Page',12:'Knight',13:'Queen',14:'King'};
+const ROMAN = ['0','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII',
+               'XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'];
+
+function plain(card, key) {
+  const p = S.PLAIN && S.PLAIN[card.id];
+  return (p && p[key]) || card[key];
+}
+function short(card) {
+  const p = S.PLAIN && S.PLAIN[card.id];
+  return (p && p.short) || '';
+}
+function kindOf(card) {
+  if (card.arcana === 'major') return 'Major Arcana · ' + ROMAN[card.num];
+  const r = RANK[card.num] || card.num;
+  return r + ' of ' + card.suit.charAt(0).toUpperCase() + card.suit.slice(1);
+}
+
+/* ---- one card page ---- */
+function cardPage(card, prev, next) {
+  const s = slug(card.name);
+  const kind = kindOf(card);
+  const sh = short(card);
+  const desc = (sh ? sh + ' ' : '') +
+    plain(card,'up').split(/(?<=\.)\s/).slice(0,2).join(' ');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(card.name)} — tarot card meaning, upright and reversed | Sage</title>
+<meta name="description" content="${esc(desc.slice(0,300))}">
+<link rel="canonical" href="${SITE}/cards/${s}.html">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta property="og:type" content="article">
+<meta property="og:title" content="${esc(card.name)} — tarot card meaning">
+<meta property="og:description" content="${esc(desc.slice(0,300))}">
+<meta property="og:url" content="${SITE}/cards/${s}.html">
+<meta property="og:image" content="${SITE}/images/${esc(card.img)}">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/theme.css">
+<script src="../js/theme-toggle.js"><\/script>
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"BreadcrumbList",
+  "itemListElement":[
+    {"@type":"ListItem","position":1,"name":"Sage","item":"${SITE}/"},
+    {"@type":"ListItem","position":2,"name":"Card meanings","item":"${SITE}/cards/"},
+    {"@type":"ListItem","position":3,"name":"${esc(card.name)}"}
+  ]
+}
+<\/script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="mark">Sage</span><span class="sub">Tarot Journal</span></a>
+    <nav class="main"><a class="card-nav-link" href="/cards/">All 78 cards</a>
+    <a class="card-nav-link" href="/">Open the app</a></nav>
+  </div>
+</header>
+
+<main class="wrap view doc">
+  <p style="margin:0 0 18px"><a href="/cards/" style="font-size:.82rem;color:var(--muted)">← Card meanings</a></p>
+
+  <div class="detail">
+    <div>
+      <div class="art"><img src="../images/${esc(card.img)}" alt="${esc(card.name)} from the Rider–Waite–Smith tarot deck" width="350" height="600"></div>
+      <table class="meta-table"><tbody>
+        <tr><td>Arcana</td><td>${card.arcana === 'major' ? 'Major · ' + ROMAN[card.num] : 'Minor'}</td></tr>
+        <tr><td>Suit</td><td>${card.arcana === 'major' ? '—' : esc(card.suit.charAt(0).toUpperCase() + card.suit.slice(1))}</td></tr>
+        <tr><td>Element</td><td>${esc(card.element)}</td></tr>
+        <tr><td>Attribution</td><td>${esc(card.astro)}</td></tr>
+      </tbody></table>
+    </div>
+
+    <div>
+      <div class="eyebrow" style="font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:10px">${esc(kind)}</div>
+      <h1 style="margin-bottom:14px">${esc(card.name)}</h1>
+      ${sh ? `<p class="in-short big"><b>In short</b>${esc(sh)}</p>` : ''}
+
+      <div class="mean-block">
+        <h4>Upright</h4>
+        <div class="kw" style="margin-bottom:12px">${card.kwU.map(k => '<span>' + esc(k) + '</span>').join('')}</div>
+        <div class="prose"><p>${esc(plain(card,'up'))}</p></div>
+      </div>
+
+      <div class="mean-block rev">
+        <h4>Reversed</h4>
+        <div class="kw" style="margin-bottom:12px">${card.kwR.map(k => '<span>' + esc(k) + '</span>').join('')}</div>
+        <div class="prose"><p>${esc(plain(card,'rev'))}</p></div>
+      </div>
+
+      <div class="look-closer" style="margin-bottom:26px"><b>In the picture</b>${esc(card.sym)}</div>
+
+      <div class="note-card"><h4>The turn</h4><p>${esc(card.advice)}</p></div>
+
+      <div class="panel" style="margin-top:34px">
+        <h3 style="margin-bottom:8px">Reading with your own deck?</h3>
+        <p class="panel-lead">Sage records the cards you actually pull, writes the reading, keeps every one,
+        and shows you what keeps returning across them. Free, private, no account.</p>
+        <div class="actions"><a class="btn" href="/">Open Sage</a></div>
+      </div>
+
+      <nav class="card-prevnext">
+        ${prev ? `<a href="${slug(prev.name)}.html">← ${esc(prev.name)}</a>` : '<span></span>'}
+        ${next ? `<a href="${slug(next.name)}.html">${esc(next.name)} →</a>` : '<span></span>'}
+      </nav>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot"><div class="wrap">
+  <span>&copy; 2026 Future Proof Works</span><span class="sep">//</span>
+  <a href="https://futureproofworks.com" target="_blank" rel="noopener">FutureProofWorks.com</a>
+  <span class="attrib">Artwork: Rider&ndash;Waite&ndash;Smith, Pamela Colman Smith, 1909 &mdash; public domain.</span>
+</div></footer>
+
+</body>
+</html>`;
+}
+
+/* ---- the index of all 78 ---- */
+function indexPage(cards) {
+  const groups = [
+    ['Major Arcana', cards.filter(c => c.arcana === 'major')],
+    ['Wands', cards.filter(c => c.suit === 'wands')],
+    ['Cups', cards.filter(c => c.suit === 'cups')],
+    ['Swords', cards.filter(c => c.suit === 'swords')],
+    ['Pentacles', cards.filter(c => c.suit === 'pentacles')]
+  ];
+
+  const sections = groups.map(([name, list]) => `
+    <p class="section-label">${name}</p>
+    <div class="lib-grid">
+      ${list.map(c => `<a class="lib-card" href="${slug(c.name)}.html">
+        <span class="thumb"><img src="../images/${esc(c.img)}" alt="${esc(c.name)}" loading="lazy"></span>
+        <span class="nm">${esc(c.name)}</span></a>`).join('')}
+    </div>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All 78 tarot card meanings, upright and reversed | Sage</title>
+<meta name="description" content="Every card in the Rider–Waite–Smith tarot deck with its upright and reversed meaning in plain English, what to look for in the picture, its element and attribution.">
+<link rel="canonical" href="${SITE}/cards/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/theme.css">
+<script src="../js/theme-toggle.js"><\/script>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="/"><span class="mark">Sage</span><span class="sub">Tarot Journal</span></a>
+  <nav class="main"><a class="card-nav-link" href="/">Open the app</a></nav>
+</div></header>
+
+<main class="wrap view doc">
+  <div class="page-head">
+    <div class="eyebrow">Card meanings</div>
+    <h1>All seventy-eight cards</h1>
+    <p class="lede">Every card with its upright and reversed meaning in plain English, what to look
+    for in the picture, its element and its astrological attribution. Written for people who read
+    with a deck in their hands.</p>
+  </div>
+  ${sections}
+</main>
+
+<footer class="site-foot"><div class="wrap">
+  <span>&copy; 2026 Future Proof Works</span><span class="sep">//</span>
+  <a href="https://futureproofworks.com" target="_blank" rel="noopener">FutureProofWorks.com</a>
+  <span class="attrib">Artwork: Rider&ndash;Waite&ndash;Smith, Pamela Colman Smith, 1909 &mdash; public domain.</span>
+</div></footer>
+
+</body>
+</html>`;
+}
+
+function sitemap(cards) {
+  const urls = [`${SITE}/`, `${SITE}/cards/`]
+    .concat(cards.map(c => `${SITE}/cards/${slug(c.name)}.html`));
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `  <url>\n    <loc>${u}</loc>\n    <changefreq>monthly</changefreq>\n  </url>`).join('\n')}
+</urlset>
+`;
+}
+
+/* ---- write it all out ---- */
+async function write(dir, name, text) {
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(text);
+  await w.close();
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  const btn = document.getElementById('go');
+
+  if (!window.showDirectoryPicker) {
+    log('This browser cannot write files. Use Chrome or Edge.', 'bad');
+    return;
+  }
+  if (!S || !S.CARDS || S.CARDS.length !== 78) {
+    log('Card data did not load — expected 78, got ' + ((S && S.CARDS && S.CARDS.length) || 0), 'bad');
+    return;
+  }
+
+  let root;
+  try { root = await window.showDirectoryPicker({ mode: 'readwrite' }); }
+  catch (e) { log('Cancelled.', 'bad'); return; }
+
+  btn.disabled = true;
+  const cards = S.CARDS.slice();
+
+  try {
+    const dir = await root.getDirectoryHandle('cards', { create: true });
+
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[i];
+      const name = slug(c.name) + '.html';
+      await write(dir, name, cardPage(c, cards[i - 1], cards[i + 1]));
+      log('cards/' + name, 'ok');
+    }
+
+    await write(dir, 'index.html', indexPage(cards));
+    log('cards/index.html', 'ok');
+
+    await write(root, 'sitemap.xml', sitemap(cards));
+    log('sitemap.xml', 'ok');
+
+    log('<br><strong class="ok">Done — ' + (cards.length + 2) + ' files written.</strong>');
+    log('Copy to the site repo and push.');
+  } catch (e) {
+    log('Failed: ' + e.message, 'bad');
+  }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

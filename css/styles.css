@@ -1095,6 +1095,27 @@ body.guest-mode .brand .sub::after{
 .progress-track{height:4px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-bottom:28px;}
 .progress-track i{display:block;height:100%;background:var(--gold);transition:width .3s;}
 
+/* ---------------- static card pages ---------------- */
+
+.card-nav-link{
+  color:var(--cream-dim);font-size:.78rem;letter-spacing:.13em;text-transform:uppercase;
+  padding:9px 14px;border-radius:6px;text-decoration:none;transition:.16s;
+}
+.card-nav-link:hover{color:var(--cream);background:var(--hover,rgba(255,255,255,.04));text-decoration:none;}
+
+.card-prevnext{
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  margin-top:44px;padding-top:22px;border-top:1px solid var(--line);
+}
+.card-prevnext a{
+  font-family:var(--serif);font-size:1.02rem;color:var(--gold-bright);text-decoration:none;
+}
+.card-prevnext a:hover{text-decoration:underline;text-underline-offset:3px;}
+
+/* the index grid uses <a> rather than <button>, so it needs the same treatment */
+a.lib-card{display:block;text-decoration:none;color:inherit;}
+a.lib-card:hover{text-decoration:none;}
+
 /* ---------------- footer ---------------- */
 
 .site-foot{
